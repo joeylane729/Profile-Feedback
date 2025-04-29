@@ -48,7 +48,7 @@ const MainNavigator = () => {
           if (route.name === 'Rate') {
             iconName = focused ? 'star' : 'star-outline';
           } else if (route.name === 'Feedback') {
-            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+            iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -59,7 +59,11 @@ const MainNavigator = () => {
         tabBarInactiveTintColor: 'gray',
       })}
     >
-      <MainTab.Screen name="Rate" component={RateNavigator} />
+      <MainTab.Screen 
+        name="Rate" 
+        component={RateNavigator}
+        options={{ headerShown: false }}
+      />
       <MainTab.Screen name="Feedback" component={FeedbackScreen} />
       <MainTab.Screen name="Profile" component={ProfileScreen} />
     </MainTab.Navigator>

@@ -1,21 +1,22 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
+
 export type RootStackParamList = {
   Auth: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList>;
 };
 
 export type AuthStackParamList = {
   Login: undefined;
-  SignUp: undefined;
-  Main: undefined;
+  Register: undefined;
+};
+
+export type MainTabParamList = {
+  Rate: NavigatorScreenParams<RateStackParamList>;
+  Feedback: undefined;
+  Profile: undefined;
 };
 
 export type RateStackParamList = {
   RatePhotos: undefined;
   RateBio: undefined;
-};
-
-export type MainTabParamList = {
-  Rate: undefined;
-  Feedback: undefined;
-  Profile: undefined;
 }; 
