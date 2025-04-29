@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MainTabParamList } from '../../navigation/types';
+import { RateStackParamList } from '../../navigation/types';
 
 const DUMMY_PROFILE = {
   bio: "Adventure seeker and coffee enthusiast. Looking for someone to share life's little moments with. Love hiking, photography, and trying new restaurants. Always up for a spontaneous road trip or a quiet night in with a good book.",
@@ -21,7 +21,7 @@ type RatingItem = {
 };
 
 const BioRatingScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<MainTabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RateStackParamList>>();
   const [currentItem, setCurrentItem] = useState(0);
   const [ratings, setRatings] = useState<{ [key: string]: number }>({});
   const [isComplete, setIsComplete] = useState(false);
@@ -50,7 +50,7 @@ const BioRatingScreen = () => {
   };
 
   const handleContinue = () => {
-    navigation.navigate('Feedback');
+    navigation.navigate('RatePhotos');
   };
 
   if (isComplete) {

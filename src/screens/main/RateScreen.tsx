@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MainTabParamList } from '../../navigation/types';
+import { RateStackParamList } from '../../navigation/types';
 
 const DUMMY_PHOTOS = [
   { id: '1', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60' },
@@ -24,7 +24,7 @@ const DUMMY_PROFILE = {
 };
 
 const RateScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<MainTabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RateStackParamList>>();
   const [currentPair, setCurrentPair] = useState(0);
   const [ratings, setRatings] = useState<{ [key: string]: number }>({});
   const [preferences, setPreferences] = useState<{ [key: string]: number }>({});
@@ -63,8 +63,7 @@ const RateScreen = () => {
   };
 
   const handleContinue = () => {
-    // Navigate to the BioRating screen
-    navigation.navigate('BioRating');
+    navigation.navigate('RateBio');
   };
 
   const [photo1Index, photo2Index] = photoPairs[currentPair];

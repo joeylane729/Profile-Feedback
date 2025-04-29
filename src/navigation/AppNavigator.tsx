@@ -27,6 +27,17 @@ const AuthNavigator = () => {
   );
 };
 
+const RateStack = createNativeStackNavigator();
+
+const RateNavigator = () => {
+  return (
+    <RateStack.Navigator screenOptions={{ headerShown: false }}>
+      <RateStack.Screen name="RatePhotos" component={RateScreen} />
+      <RateStack.Screen name="RateBio" component={BioRatingScreen} />
+    </RateStack.Navigator>
+  );
+};
+
 const MainNavigator = () => {
   return (
     <MainTab.Navigator
@@ -36,8 +47,6 @@ const MainNavigator = () => {
 
           if (route.name === 'Rate') {
             iconName = focused ? 'star' : 'star-outline';
-          } else if (route.name === 'BioRating') {
-            iconName = focused ? 'document-text' : 'document-text-outline';
           } else if (route.name === 'Feedback') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Profile') {
@@ -50,8 +59,7 @@ const MainNavigator = () => {
         tabBarInactiveTintColor: 'gray',
       })}
     >
-      <MainTab.Screen name="Rate" component={RateScreen} />
-      <MainTab.Screen name="BioRating" component={BioRatingScreen} />
+      <MainTab.Screen name="Rate" component={RateNavigator} />
       <MainTab.Screen name="Feedback" component={FeedbackScreen} />
       <MainTab.Screen name="Profile" component={ProfileScreen} />
     </MainTab.Navigator>

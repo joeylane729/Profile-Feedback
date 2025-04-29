@@ -9,9 +9,13 @@ export type AuthStackParamList = {
   Main: undefined;
 };
 
+export type RateStackParamList = {
+  RatePhotos: undefined;
+  RateBio: undefined;
+};
+
 export type MainTabParamList = {
   Rate: undefined;
-  BioRating: undefined;
   Feedback: undefined;
   Profile: undefined;
 }; 
