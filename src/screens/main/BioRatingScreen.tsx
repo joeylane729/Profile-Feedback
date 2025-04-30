@@ -25,7 +25,6 @@ const BioRatingScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RateStackParamList>>();
   const [currentItem, setCurrentItem] = useState(0);
   const [ratings, setRatings] = useState<{ [key: string]: number }>({});
-  const [isComplete, setIsComplete] = useState(false);
   const [scaleAnim] = useState(new Animated.Value(1));
 
   const items: RatingItem[] = [
@@ -39,10 +38,7 @@ const BioRatingScreen = () => {
   ];
 
   const handleBack = () => {
-    if (isComplete) {
-      setIsComplete(false);
-      setCurrentItem(items.length - 1);
-    } else if (currentItem > 0) {
+    if (currentItem > 0) {
       setCurrentItem(prev => prev - 1);
     } else {
       navigation.goBack();
@@ -70,61 +66,15 @@ const BioRatingScreen = () => {
 
     if (currentItem < items.length - 1) {
       setCurrentItem(prev => prev + 1);
-    } else {
-      setIsComplete(true);
     }
   };
 
-  const handleContinue = () => {
+  const handleNextProfile = () => {
     navigation.navigate('RatePhotos');
   };
 
-  if (isComplete) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={24} color="#333" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Rating Complete!</Text>
-            <View style={styles.backButton} />
-          </View>
-
-          <Text style={styles.subtitle}>Here are your ratings:</Text>
-          
-          <ScrollView style={styles.ratingsContainer}>
-            {items.map(item => (
-              <View key={item.id} style={styles.ratingItem}>
-                <Text style={styles.ratingLabel}>
-                  {item.type === 'bio' ? 'Bio' : item.question}
-                </Text>
-                <View style={styles.ratingValueContainer}>
-                  <Text style={styles.ratingValue}>
-                    {ratings[item.id] || 'Not rated'}/10
-                  </Text>
-                  <View style={styles.ratingBarContainer}>
-                    <View 
-                      style={[
-                        styles.ratingBar,
-                        { width: `${((ratings[item.id] || 0) / 10) * 100}%` }
-                      ]} 
-                    />
-                  </View>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-
-          <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-            <Text style={styles.continueButtonText}>Continue to Next Profile</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   const current = items[currentItem];
+  const isLastItem = currentItem === items.length - 1;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -165,6 +115,15 @@ const BioRatingScreen = () => {
               </TouchableOpacity>
             ))}
           </View>
+
+          {isLastItem && ratings[current.id] && (
+            <TouchableOpacity 
+              style={styles.nextProfileButton}
+              onPress={handleNextProfile}
+            >
+              <Text style={styles.nextProfileButtonText}>Next Profile</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -203,40 +162,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   contentContainer: {
     flex: 1,
-    justifyContent: 'center',
-    marginTop: 20,
+    justifyContent: 'space-between',
   },
   contentCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     padding: 20,
-    borderRadius: 12,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderRadius: 10,
+    marginBottom: 20,
   },
   content: {
     fontSize: 16,
     lineHeight: 24,
-    textAlign: 'center',
-    color: '#333',
   },
   ratingButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 10,
+    marginBottom: 20,
   },
   ratingButton: {
     width: 50,
@@ -245,12 +192,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
   selectedRating: {
     backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
   },
   ratingButtonText: {
     fontSize: 18,
@@ -260,69 +204,14 @@ const styles = StyleSheet.create({
   selectedRatingText: {
     color: '#fff',
   },
-  ratingsContainer: {
-    flex: 1,
-    width: '100%',
-    padding: 10,
-  },
-  ratingItem: {
-    backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  ratingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  ratingValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  ratingValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
-    minWidth: 50,
-  },
-  ratingBarContainer: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  ratingBar: {
-    height: '100%',
-    backgroundColor: '#007AFF',
-    borderRadius: 4,
-  },
-  continueButton: {
+  nextProfileButton: {
     backgroundColor: '#007AFF',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  continueButtonText: {
+  nextProfileButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
