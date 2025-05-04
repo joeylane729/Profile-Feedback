@@ -27,6 +27,7 @@
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="com.joeylane19.profile_feedback"/>
         <data android:scheme="exp+profilefeedback"/>
+        <data android:scheme="profilefeedback"/>
       </intent-filter>
     </activity>
   </application>

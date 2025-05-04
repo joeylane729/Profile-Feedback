@@ -118,20 +118,75 @@ const GoogleSignIn: React.FC = () => {
 
   const handleSignIn = async () => {
     try {
-      console.log('Sign in button pressed');
-      console.log('Request object:', JSON.stringify(request, null, 2));
-      console.log('Current response:', response);
-      console.log('Starting authentication prompt...');
+      console.log('Starting Google Sign-In process...');
       const result = await promptAsync();
       console.log('Full prompt result:', JSON.stringify(result, null, 2));
-      if (result?.type === 'error') {
-        console.error('Prompt error:', result.error);
+
+      if (result.type === 'success') {
+        console.log('Authentication successful, fetching user info...');
+        const { authentication } = result;
+        
+        if (!authentication) {
+          throw new Error('Authentication object is null');
+        }
+        
+        console.log('Authentication object:', JSON.stringify(authentication, null, 2));
+
+        try {
+          const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+            headers: { Authorization: `Bearer ${authentication.accessToken}` },
+          });
+          const userInfo = await userInfoResponse.json();
+          console.log('User info response:', JSON.stringify(userInfo, null, 2));
+
+          if (!userInfoResponse.ok) {
+            throw new Error(`Failed to fetch user info: ${userInfoResponse.status} ${userInfoResponse.statusText}`);
+          }
+
+          const backendResponse = await fetch('http://localhost:3000/api/auth/google', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              idToken: authentication.idToken,
+              accessToken: authentication.accessToken,
+              userInfo,
+            }),
+          });
+
+          console.log('Backend response status:', backendResponse.status);
+          const backendData = await backendResponse.json();
+          console.log('Backend response data:', JSON.stringify(backendData, null, 2));
+
+          if (!backendResponse.ok) {
+            throw new Error(`Backend error: ${backendResponse.status} ${JSON.stringify(backendData)}`);
+          }
+
+          // Handle successful authentication
+          console.log('Authentication completed successfully');
+          if (backendData.token) {
+            console.log('Saving token...');
+            await setToken(backendData.token);
+            setIsAuthenticated(true);
+            console.log('Successfully authenticated and saved token');
+          } else {
+            console.error('No token received from backend');
+          }
+        } catch (error) {
+          console.error('Error during user info fetch or backend communication:', error);
+          throw error;
+        }
+      } else if (result.type === 'error') {
+        console.error('Authentication error:', result.error);
         console.error('Error code:', result.error?.code);
         console.error('Error message:', result.error?.message);
-        console.error('Full error object:', JSON.stringify(result.error, null, 2));
+        throw new Error(`Authentication failed: ${result.error?.message}`);
+      } else if (result.type === 'cancel') {
+        console.log('User cancelled the authentication process');
       }
     } catch (error) {
-      console.error('Error during prompt:', error);
+      console.error('Error in handleSignIn:', error);
       if (error instanceof Error) {
         console.error('Error details:', error.message);
         console.error('Error stack:', error.stack);

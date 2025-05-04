@@ -29,6 +29,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
+          <string>profilefeedback</string>
           <string>com.joeylane19.profile-feedback</string>
         </array>
       </dict>
@@ -40,7 +41,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>1.0.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>

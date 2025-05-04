@@ -14,14 +14,16 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.joeylane19.profile-feedback"
+      "bundleIdentifier": "com.joeylane19.profile-feedback",
+      "buildNumber": "1.0.0"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.joeylane19.profile_feedback"
+      "package": "com.joeylane19.profile_feedback",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +32,10 @@
       "eas": {
         "projectId": "e9eb15e6-402e-4aa9-83a1-02887f9b3f72"
       }
-    }
+    },
+    "scheme": "profilefeedback",
+    "plugins": [
+      "expo-dev-client"
+    ]
   }
 }

@@ -5,7 +5,13 @@ import { generateToken } from '../utils/auth';
 
 export const handleGoogleAuth = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('Received Google auth request:', req.body);
     const { googleId, email, name, profilePicture } = req.body;
+
+    if (!googleId || !email) {
+      console.error('Missing required fields:', { googleId, email });
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     // Check if user already exists with this Google ID
     const existingUser = await pool.query(
@@ -13,10 +19,13 @@ export const handleGoogleAuth = async (req: AuthRequest, res: Response) => {
       [googleId]
     );
 
+    console.log('Existing user check result:', existingUser.rows);
+
     if (existingUser.rows.length > 0) {
       // User exists, generate token and return
       const user = existingUser.rows[0];
       const token = generateToken(user);
+      console.log('Returning existing user:', { user, token });
       
       return res.json({
         user: {

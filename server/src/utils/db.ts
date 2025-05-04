@@ -8,6 +8,16 @@ const pool = new Pool({
   port: parseInt(process.env.PGPORT || '5432'),
 });
 
+// Test connection
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('Error connecting to PostgreSQL:', err);
+    process.exit(1);
+  }
+  console.log('Successfully connected to PostgreSQL');
+  release();
+});
+
 // Create users table if it doesn't exist
 pool.query(`
   CREATE TABLE IF NOT EXISTS users (
@@ -21,18 +31,9 @@ pool.query(`
 `, (err, res) => {
   if (err) {
     console.error('Error creating users table:', err);
-  } else {
-    console.log('Users table is ready');
+    process.exit(1);
   }
-});
-
-// Test the connection
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('Error connecting to PostgreSQL:', err);
-  } else {
-    console.log('Connected to PostgreSQL');
-  }
+  console.log('Users table is ready');
 });
 
 export default pool; 
