@@ -9,6 +9,13 @@ import Svg, { Path } from 'react-native-svg';
 // Configure WebBrowser
 WebBrowser.maybeCompleteAuthSession();
 
+// API URL configuration
+const API_URL = Platform.select({
+  ios: 'http://192.168.1.249:3000',
+  android: 'http://192.168.1.249:3000',
+  default: 'http://localhost:3000',
+});
+
 const GoogleSignIn: React.FC = () => {
   const { setIsAuthenticated, setToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +72,7 @@ const GoogleSignIn: React.FC = () => {
       const userData = await userInfo.json();
       console.log('User info:', userData);
 
-      const backendResponse = await fetch('http://localhost:3000/api/auth/google', {
+      const backendResponse = await fetch(`${API_URL}/api/auth/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
