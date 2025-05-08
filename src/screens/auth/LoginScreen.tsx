@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
+import EmailAuth from '../../components/EmailAuth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -57,7 +58,7 @@ const LoginScreen = () => {
       console.log('User info from Google:', userInfo);
 
       // Send to our backend
-      const backendResponse = await fetch('http://localhost:3000/api/auth/google', {
+      const backendResponse = await fetch('http://192.168.1.249:3000/api/auth/google', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,30 +107,43 @@ const LoginScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Profile Feedback</Text>
-      <Text style={styles.subtitle}>Sign in to get started</Text>
-      
-      <TouchableOpacity 
-        style={styles.button}
-        onPress={handleGoogleLoginPress}
-      >
-        <Ionicons name="logo-google" size={24} color="#fff" />
-        <Text style={styles.buttonText}>Continue with Google</Text>
-      </TouchableOpacity>
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Welcome to Profile Feedback</Text>
+        <Text style={styles.subtitle}>Sign in to get started</Text>
+        
+        <EmailAuth />
 
-      <TouchableOpacity 
-        style={[styles.button, styles.appleButton]}
-        onPress={handleAppleLoginPress}
-      >
-        <Ionicons name="logo-apple" size={24} color="#fff" />
-        <Text style={styles.buttonText}>Continue with Apple</Text>
-      </TouchableOpacity>
-    </View>
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or continue with</Text>
+          <View style={styles.dividerLine} />
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={handleGoogleLoginPress}
+        >
+          <Ionicons name="logo-google" size={24} color="#fff" />
+          <Text style={styles.buttonText}>Continue with Google</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.button, styles.appleButton]}
+          onPress={handleAppleLoginPress}
+        >
+          <Ionicons name="logo-apple" size={24} color="#fff" />
+          <Text style={styles.buttonText}>Continue with Apple</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flexGrow: 1,
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -148,6 +162,22 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 30,
     textAlign: 'center',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#666',
+    fontSize: 14,
   },
   button: {
     flexDirection: 'row',
