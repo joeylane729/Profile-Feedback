@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '../../context/AuthContext';
 
 // Dummy data - in a real app, this would come from your backend/state management
 const INITIAL_PROFILE = {
@@ -39,9 +40,20 @@ const INITIAL_PROFILE = {
 };
 
 const ProfileScreen = () => {
+  const { setIsAuthenticated, setToken } = useAuth();
   const [profile, setProfile] = useState(INITIAL_PROFILE);
   const [editingBio, setEditingBio] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      await setToken(null);
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('Error during logout:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -177,6 +189,16 @@ const ProfileScreen = () => {
           </View>
         ))}
       </View>
+
+      {/* Logout Button */}
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+          <Text style={styles.logoutButtonText}>Log Out</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
@@ -281,6 +303,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
+  },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

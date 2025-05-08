@@ -27,29 +27,57 @@ const EmailAuth: React.FC = () => {
       }
 
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const response = await fetch(`http://192.168.1.249:3000${endpoint}`, {
+      const url = `http://192.168.1.249:3000${endpoint}`;
+      console.log('Making request to:', url);
+      
+      const body = {
+        email,
+        password,
+        ...(isLogin ? {} : { name }),
+      };
+      console.log('Request body:', body);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          email,
-          password,
-          ...(isLogin ? {} : { name }),
-        }),
+        body: JSON.stringify(body),
       });
 
+      console.log('Response status:', response.status);
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Authentication failed');
+        let errorMessage = 'Authentication failed';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          console.log('Error parsing error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      if (data.token) {
-        await setToken(data.token);
-        setIsAuthenticated(true);
+      try {
+        const data = JSON.parse(responseText);
+        console.log('Parsed response data:', data);
+        
+        if (data.token) {
+          await setToken(data.token);
+          setIsAuthenticated(true);
+          console.log('Successfully authenticated');
+        } else {
+          throw new Error('No token received');
+        }
+      } catch (e) {
+        console.log('Error parsing success response:', e);
+        throw new Error('Invalid response format');
       }
     } catch (error: any) {
+      console.log('Error in handleSubmit:', error);
       Alert.alert('Error', error.message || 'Something went wrong');
     } finally {
       setIsLoading(false);
