@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,18 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
+
+// API URL configuration
+const API_URL = Platform.select({
+  ios: 'http://192.168.1.249:3000',
+  android: 'http://192.168.1.249:3000',
+  default: 'http://localhost:3000',
+});
 
 // Dummy data - in a real app, this would come from your backend/state management
 const INITIAL_PROFILE = {
@@ -40,10 +48,38 @@ const INITIAL_PROFILE = {
 };
 
 const ProfileScreen = () => {
-  const { setIsAuthenticated, setToken } = useAuth();
+  const { setIsAuthenticated, setToken, token } = useAuth();
   const [profile, setProfile] = useState(INITIAL_PROFILE);
   const [editingBio, setEditingBio] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
+  const [userData, setUserData] = useState<{ name: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const data = await response.json();
+      setUserData(data);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      Alert.alert('Error', 'Failed to load user data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -108,6 +144,11 @@ const ProfileScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
+      {/* User Info Section */}
+      <View style={styles.section}>
+        <Text style={styles.userName}>{userData?.name || 'Loading...'}</Text>
+      </View>
+
       {/* Photos Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Photos</Text>
@@ -315,6 +356,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  userName: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#000',
   },
 });
 
