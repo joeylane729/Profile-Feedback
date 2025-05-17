@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
 import EmailAuth from '../../components/EmailAuth';
+import { config } from '../../config';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -58,7 +59,7 @@ const LoginScreen = () => {
       console.log('User info from Google:', userInfo);
 
       // Send to our backend
-      const backendResponse = await fetch('http://192.168.1.249:3000/api/auth/google', {
+      const backendResponse = await fetch(`${config.api.baseUrl}/api/auth/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

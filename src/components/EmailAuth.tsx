@@ -8,8 +8,15 @@ import {
   Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { config } from '../config';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const EmailAuth: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
   const { setIsAuthenticated, setToken } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -20,14 +27,15 @@ const EmailAuth: React.FC = () => {
   const handleSubmit = async () => {
     try {
       setIsLoading(true);
+      console.log('Starting login/register process...');
       
       if (!email || !password || (!isLogin && !name)) {
         Alert.alert('Error', 'Please fill in all fields');
         return;
       }
 
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const url = `http://192.168.1.249:3000${endpoint}`;
+      const endpoint = isLogin ? config.api.endpoints.auth.login : config.api.endpoints.auth.register;
+      const url = `${config.api.baseUrl}${endpoint}`;
       console.log('Making request to:', url);
       
       const body = {
@@ -37,6 +45,7 @@ const EmailAuth: React.FC = () => {
       };
       console.log('Request body:', body);
 
+      console.log('Sending request...');
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -46,9 +55,14 @@ const EmailAuth: React.FC = () => {
         body: JSON.stringify(body),
       });
 
-      console.log('Response status:', response.status);
+      console.log('Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       const responseText = await response.text();
-      console.log('Response text:', responseText);
+      console.log('Raw response text:', responseText);
 
       if (!response.ok) {
         let errorMessage = 'Authentication failed';
@@ -61,24 +75,28 @@ const EmailAuth: React.FC = () => {
         throw new Error(errorMessage);
       }
 
+      let data;
       try {
-        const data = JSON.parse(responseText);
+        data = JSON.parse(responseText);
         console.log('Parsed response data:', data);
-        
-        if (data.token) {
-          await setToken(data.token);
-          setIsAuthenticated(true);
-          console.log('Successfully authenticated');
-        } else {
-          throw new Error('No token received');
-        }
       } catch (e) {
-        console.log('Error parsing success response:', e);
+        console.error('Error parsing response:', e);
         throw new Error('Invalid response format');
       }
-    } catch (error: any) {
-      console.log('Error in handleSubmit:', error);
-      Alert.alert('Error', error.message || 'Something went wrong');
+
+      if (data.token) {
+        console.log('Token received, setting auth state...');
+        await setToken(data.token);
+        console.log('Token set, updating auth state...');
+        setIsAuthenticated(true);
+        console.log('Auth state updated successfully');
+      } else {
+        console.error('No token in response:', data);
+        throw new Error('No token received');
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Authentication failed');
     } finally {
       setIsLoading(false);
     }
@@ -116,16 +134,12 @@ const EmailAuth: React.FC = () => {
       />
       
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={handleSubmit}
         disabled={isLoading}
       >
         <Text style={styles.buttonText}>
-          {isLoading
-            ? 'Loading...'
-            : isLogin
-            ? 'Sign In'
-            : 'Sign Up'}
+          {isLoading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
         </Text>
       </TouchableOpacity>
       
@@ -183,6 +197,10 @@ const styles = StyleSheet.create({
   switchButtonText: {
     color: '#007AFF',
     fontSize: 14,
+  },
+  buttonDisabled: {
+    backgroundColor: '#999',
+    opacity: 0.7,
   },
 });
 

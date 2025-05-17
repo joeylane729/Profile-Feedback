@@ -2,9 +2,10 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { RootStackParamList, AuthStackParamList, MainTabParamList } from './types';
+import { RootStackParamList, AuthStackParamList, MainTabParamList, RateStackParamList } from './types';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Import screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -17,6 +18,7 @@ import BioRatingScreen from '../screens/main/BioRatingScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const MainTab = createBottomTabNavigator<MainTabParamList>();
+const RateStack = createNativeStackNavigator<RateStackParamList>();
 
 const AuthNavigator = () => {
   return (
@@ -26,8 +28,6 @@ const AuthNavigator = () => {
     </AuthStack.Navigator>
   );
 };
-
-const RateStack = createNativeStackNavigator();
 
 const RateNavigator = () => {
   return (
@@ -41,6 +41,7 @@ const RateNavigator = () => {
 const MainNavigator = () => {
   return (
     <MainTab.Navigator
+      initialRouteName="Rate"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -57,15 +58,40 @@ const MainNavigator = () => {
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarStyle: {
+          display: 'flex',
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#eee',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
       })}
     >
       <MainTab.Screen 
         name="Rate" 
         component={RateNavigator}
-        options={{ headerShown: false }}
+        options={{
+          tabBarLabel: 'Rate',
+        }}
       />
-      <MainTab.Screen name="Feedback" component={FeedbackScreen} />
-      <MainTab.Screen name="Profile" component={ProfileScreen} />
+      <MainTab.Screen 
+        name="Feedback" 
+        component={FeedbackScreen}
+        options={{
+          tabBarLabel: 'Feedback',
+        }}
+      />
+      <MainTab.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+        }}
+      />
     </MainTab.Navigator>
   );
 };
@@ -74,15 +100,21 @@ const AppNavigator = () => {
   const { isAuthenticated } = useAuth();
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isAuthenticated ? (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
-        ) : (
-          <Stack.Screen name="Main" component={MainNavigator} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!isAuthenticated ? (
+            <Stack.Screen name="Auth" component={AuthNavigator} />
+          ) : (
+            <Stack.Screen 
+              name="Main" 
+              component={MainNavigator}
+              options={{ headerShown: false }}
+            />
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 };
 

@@ -13,8 +13,8 @@ export const hashPassword = async (password: string): Promise<string> => {
   return bcrypt.hash(password, SALT_ROUNDS);
 };
 
-export const comparePasswords = async (password: string, hashedPassword: string): Promise<boolean> => {
-  return bcrypt.compare(password, hashedPassword);
+export const comparePasswords = async (password: string, hash: string): Promise<boolean> => {
+  return bcrypt.compare(password, hash);
 };
 
 export const generateToken = (user: User): string => {
@@ -28,9 +28,10 @@ export const generateToken = (user: User): string => {
   );
 };
 
-export const verifyToken = (token: string): any => {
+export const verifyToken = (token: string): { userId: number; email: string } => {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number; email: string };
+    return decoded;
   } catch (error) {
     throw new Error('Invalid token');
   }

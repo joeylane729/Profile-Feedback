@@ -18,22 +18,27 @@ pool.connect((err, client, release) => {
   release();
 });
 
-// Create users table if it doesn't exist
-pool.query(`
-  CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(255),
-    google_id VARCHAR(255) UNIQUE,
-    profile_picture TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-`, (err, res) => {
-  if (err) {
-    console.error('Error creating users table:', err);
+// Run migrations
+const runMigrations = async () => {
+  try {
+    // Create users table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255),
+        google_id VARCHAR(255) UNIQUE,
+        profile_picture TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Users table is ready');
+  } catch (error) {
+    console.error('Error running migrations:', error);
     process.exit(1);
   }
-  console.log('Users table is ready');
-});
+};
+
+runMigrations();
 
 export default pool; 

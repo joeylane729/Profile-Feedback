@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, Text, View, Platform } from 'react-native';
+import { TouchableOpacity, Text, View, Platform, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import Svg, { Path } from 'react-native-svg';
+import { config } from '../config';
 
 // Configure WebBrowser
 WebBrowser.maybeCompleteAuthSession();
@@ -119,27 +120,30 @@ const GoogleSignIn: React.FC = () => {
     <TouchableOpacity
       onPress={handlePress}
       disabled={isLoading}
-      style={{
-        backgroundColor: '#4285F4',
-        padding: 10,
-        borderRadius: 5,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: isLoading ? 0.7 : 1,
-      }}
+      style={styles.button}
     >
-      <Svg width="24" height="24" viewBox="0 0 24 24">
-        <Path
-          fill="#FFC107"
-          d="M21.35,11.1H12.18V13.83H16.69C16.36,17.64 14.19,19.27 12.19,19.27C9.36,19.27 7,16.89 7,14C7,11.11 9.36,8.73 12.19,8.73C13.63,8.73 14.89,9.34 15.85,10.3L18.22,7.93C16.64,6.45 14.52,5.5 12.19,5.5C7.36,5.5 3.5,9.36 3.5,14C3.5,18.64 7.36,22.5 12.19,22.5C17.19,22.5 21.5,18.29 21.5,14C21.5,13.13 21.35,12.19 21.35,11.1Z"
-        />
-      </Svg>
-      <Text style={{ color: 'white', marginLeft: 10 }}>
-        {isLoading ? 'Signing in...' : 'Sign in with Google'}
-      </Text>
+      {isLoading ? (
+        <ActivityIndicator color="#fff" />
+      ) : (
+        <Text style={styles.buttonText}>Sign in with Google</Text>
+      )}
     </TouchableOpacity>
   );
 };
+
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: '#4285F4',
+    padding: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
 
 export default GoogleSignIn; 

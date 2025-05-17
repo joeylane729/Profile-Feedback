@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
+import { config } from '../config';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -10,9 +12,9 @@ interface AuthContextType {
 }
 
 interface DecodedToken {
-  userId: string;
-  email: string;
   exp: number;
+  userId: number;
+  email: string;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -28,11 +30,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkTokenExpiration = (token: string) => {
     try {
-      const decoded = jwtDecode<DecodedToken>(token);
+      // Remove 'Bearer ' prefix if present
+      const tokenWithoutPrefix = token.replace('Bearer ', '');
+      const decoded = jwtDecode<DecodedToken>(tokenWithoutPrefix);
       const currentTime = Date.now() / 1000;
       
+      console.log('Token expiration check:', {
+        expiration: decoded.exp,
+        currentTime,
+        isValid: decoded.exp > currentTime
+      });
+      
       if (decoded.exp < currentTime) {
-        // Token has expired
+        console.log('Token has expired');
         setToken(null);
         setIsAuthenticated(false);
         return false;
@@ -49,12 +59,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadToken = async () => {
       try {
         const storedToken = await AsyncStorage.getItem('token');
+        console.log('Loaded token from storage:', storedToken ? 'exists' : 'null');
+        
         if (storedToken) {
           if (checkTokenExpiration(storedToken)) {
             setToken(storedToken);
             setIsAuthenticated(true);
+            console.log('Token is valid, user is authenticated');
           } else {
-            // Token is expired, remove it from storage
+            console.log('Token is invalid or expired, removing from storage');
             await AsyncStorage.removeItem('token');
           }
         }
@@ -70,14 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saveToken = async () => {
       try {
         if (token) {
-          if (checkTokenExpiration(token)) {
-            await AsyncStorage.setItem('token', token);
-          } else {
-            await AsyncStorage.removeItem('token');
-            setToken(null);
-            setIsAuthenticated(false);
-          }
+          console.log('Saving token to storage');
+          await AsyncStorage.setItem('token', token);
         } else {
+          console.log('Removing token from storage');
           await AsyncStorage.removeItem('token');
         }
       } catch (error) {

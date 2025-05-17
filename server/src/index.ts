@@ -1,49 +1,86 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import pool from './utils/db';
 import authRoutes from './routes/auth';
+import { authenticate } from './middleware/auth';
+import pool from './utils/db';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.SERVER_PORT || 3000;
+const host = process.env.SERVER_HOST || '0.0.0.0';
+const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:8081';
 
-// Middleware
-app.use(cors({
-  origin: ['exp://192.168.1.249:8081', 'http://localhost:8081'],
-  credentials: true,
+// Add request logging middleware FIRST
+app.use((req, res, next) => {
+  console.log('\n=== New Request ===');
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('==================\n');
+  next();
+});
+
+// CORS configuration
+const corsOptions = {
+  origin: clientOrigin,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// Test database connection
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('PostgreSQL connection error:', err);
-    process.exit(1);
-  } else {
-    console.log('Connected to PostgreSQL');
-  }
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Test endpoint
+app.get('/test', (req, res) => {
+  console.log('Test endpoint hit');
+  res.json({ message: 'Server is working!' });
 });
 
 // Routes
 app.use('/api/auth', authRoutes);
 
-// Basic health check route
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
 // Error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(Number(port), host, async () => {
+  try {
+    console.log(`Server is running on port ${port}`);
+    console.log(`Server is accessible at http://${host === '0.0.0.0' ? 'YOUR_LOCAL_IP' : host}:${port}`);
+    
+    // Test database connection
+    const client = await pool.connect();
+    console.log('Successfully connected to PostgreSQL');
+    client.release();
+    
+    // Check if users table exists
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'users'
+      );
+    `);
+    
+    if (tableCheck.rows[0].exists) {
+      console.log('Users table is ready');
+    } else {
+      console.log('Users table does not exist');
+    }
+    
+    console.log('Connected to PostgreSQL');
+  } catch (error) {
+    console.error('Error during server startup:', error);
+  }
 }); 
