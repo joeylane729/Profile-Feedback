@@ -101,6 +101,9 @@ const ProfileScreen = () => {
   const [activePromptCollection, setActivePromptCollection] = useState('1');
   const [editingCollectionName, setEditingCollectionName] = useState<string | null>(null);
   const [editingCollectionType, setEditingCollectionType] = useState<'photo' | 'prompt' | null>(null);
+  const [activeReviewedCollectionId, setActiveReviewedCollectionId] = useState(
+    INITIAL_DATA.photoCollections[0]?.id || null
+  );
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
 
   useEffect(() => {
@@ -277,8 +280,15 @@ const ProfileScreen = () => {
   const renderPhotoAlbum = ({ item: collection }: { item: typeof INITIAL_DATA.photoCollections[0] }) => (
     <TouchableOpacity
       key={collection.id}
-      style={styles.albumCard}
-      onPress={() => navigation.navigate('AlbumDetail', { album: collection })}
+      style={[
+        styles.albumCard,
+        collection.id === activeReviewedCollectionId && styles.activeAlbumCard,
+      ]}
+      onPress={() => navigation.navigate('AlbumDetail', {
+        album: collection,
+        isActive: collection.id === activeReviewedCollectionId,
+        setActiveReviewedCollectionId,
+      })}
       activeOpacity={0.8}
     >
       <Image source={{ uri: collection.coverPhoto }} style={styles.albumCoverPhoto} />
@@ -286,6 +296,11 @@ const ProfileScreen = () => {
         <Text style={styles.albumCardName} numberOfLines={2}>{collection.name}</Text>
         <Text style={styles.albumCardCount}>{collection.photoCount}</Text>
       </View>
+      {collection.id === activeReviewedCollectionId && (
+        <View style={styles.activeBadge}>
+          <Ionicons name="checkmark-circle" size={22} color="#34C759" />
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -596,6 +611,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
+  },
+  activeAlbumCard: {
+    borderWidth: 2,
+    borderColor: '#34C759',
+  },
+  activeBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 2,
+    zIndex: 2,
   },
 });
 
