@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RateStackParamList } from '../../navigation/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DUMMY_PHOTOS = [
   { id: '1', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60' },
@@ -52,6 +53,7 @@ const RateScreen = () => {
   const [photoFeedback, setPhotoFeedback] = useState<{ [key: string]: string[] }>({});
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const photoPairs: [number, number][] = [];
   for (let i = 0; i < DUMMY_PROFILE.photos.length; i++) {
@@ -314,7 +316,7 @@ const RateScreen = () => {
 
         <Text style={styles.subtitle}>{currentPair + 1} of {photoPairs.length}</Text>
         
-        <View style={styles.photosContainer}>
+        <View style={[styles.photosContainer, { paddingBottom: insets.bottom + 32 }]}>
           <TouchableOpacity 
             style={styles.photoContainer}
             onPress={() => handlePreference(0)}
@@ -387,17 +389,17 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'flex-start',
     alignItems: 'center',
-    gap: 20,
+    gap: 12,
     paddingBottom: 80,
     marginTop: 16,
   },
   photoContainer: {
-    width: '90%',
-    aspectRatio: 1,
+    width: '80%',
+    aspectRatio: 1.1,
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   photo: {
     width: '100%',
