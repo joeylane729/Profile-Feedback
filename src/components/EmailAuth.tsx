@@ -85,11 +85,29 @@ const EmailAuth: React.FC = () => {
       }
 
       if (data.token) {
-        console.log('Token received, setting auth state...');
-        await setToken(data.token);
-        console.log('Token set, updating auth state...');
-        setIsAuthenticated(true);
-        console.log('Auth state updated successfully');
+        console.log('=== LOGIN SUCCESS FLOW START ===');
+        try {
+          // First set the token and wait for it to complete
+          console.log('1. Setting token...');
+          await setToken(data.token);
+          console.log('2. Token set successfully');
+
+          // Wait for token to be saved to AsyncStorage
+          console.log('3. Waiting for token to be saved...');
+          await new Promise(resolve => setTimeout(resolve, 500)); // Increased delay to ensure token is saved
+
+          // Only set isAuthenticated after token is confirmed saved
+          console.log('4. Setting isAuthenticated to true...');
+          setIsAuthenticated(true);
+          console.log('5. Auth state update complete');
+          console.log('=== LOGIN SUCCESS FLOW END ===');
+        } catch (error) {
+          console.error('Error in login flow:', error);
+          // If anything fails, ensure we're logged out
+          await setToken(null);
+          setIsAuthenticated(false);
+          throw error;
+        }
       } else {
         console.error('No token in response:', data);
         throw new Error('No token received');

@@ -9,7 +9,7 @@ import pool from './utils/db';
 dotenv.config();
 
 const app = express();
-const port = process.env.SERVER_PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const host = process.env.SERVER_HOST || '0.0.0.0';
 const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:8081';
 
@@ -55,10 +55,10 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Start server
-app.listen(Number(port), host, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
   try {
-    console.log(`Server is running on port ${port}`);
-    console.log(`Server is accessible at http://${host === '0.0.0.0' ? 'YOUR_LOCAL_IP' : host}:${port}`);
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is accessible at http://${host === '0.0.0.0' ? 'YOUR_LOCAL_IP' : host}:${PORT}`);
     
     // Test database connection
     const client = await pool.connect();

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import EmailAuth from '../../components/EmailAuth';
 import { config } from '../../config';
 
@@ -100,10 +101,13 @@ const LoginScreen = () => {
 
   const handleAppleLoginPress = async () => {
     try {
-      // TODO: Implement actual Apple login
+      console.log('Development mode: bypassing Apple auth');
+      // Set a dummy token first
+      await setToken('dummy-token-for-testing');
+      // Then set authentication
       setIsAuthenticated(true);
     } catch (error) {
-      console.error('Apple login error:', error);
+      console.error('Error bypassing auth:', error);
     }
   };
 
