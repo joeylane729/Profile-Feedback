@@ -11,15 +11,20 @@ import {
   Platform,
   ActionSheetIOS,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { MainTabParamList } from '../../navigation/types';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 const { width } = Dimensions.get('window');
-const ALBUM_SIZE = (width - 48) / 2; // 2 columns with padding
+const ALBUM_CARD_WIDTH = (width - 16) / 2; // wider pills, less margin
+const ALBUM_CARD_HEIGHT = 90;
 
 // Dummy data - in a real app, this would come from your backend/state management
 const INITIAL_DATA = {
@@ -76,6 +81,15 @@ const INITIAL_DATA = {
   bio: "Adventure seeker and coffee enthusiast. Love hiking, photography, and trying new restaurants. Looking for someone to share life's little moments with."
 };
 
+// Helper to chunk array into columns of 3
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const res: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    res.push(arr.slice(i, i + size));
+  }
+  return res;
+}
+
 const ProfileScreen = () => {
   const { setIsAuthenticated, setToken, token } = useAuth();
   const [data, setData] = useState(INITIAL_DATA);
@@ -87,6 +101,7 @@ const ProfileScreen = () => {
   const [activePromptCollection, setActivePromptCollection] = useState('1');
   const [editingCollectionName, setEditingCollectionName] = useState<string | null>(null);
   const [editingCollectionType, setEditingCollectionType] = useState<'photo' | 'prompt' | null>(null);
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
 
   useEffect(() => {
     if (token) {
@@ -259,29 +274,17 @@ const ProfileScreen = () => {
     }));
   };
 
-  const renderPhotoAlbum = (collection: typeof INITIAL_DATA.photoCollections[0]) => (
-    <TouchableOpacity 
+  const renderPhotoAlbum = ({ item: collection }: { item: typeof INITIAL_DATA.photoCollections[0] }) => (
+    <TouchableOpacity
       key={collection.id}
-      style={styles.albumContainer}
-      onPress={() => setActivePhotoCollection(collection.id)}
+      style={styles.albumCard}
+      onPress={() => navigation.navigate('AlbumDetail', { album: collection })}
+      activeOpacity={0.8}
     >
-      <View style={styles.albumCover}>
-        <Image 
-          source={{ uri: collection.coverPhoto }} 
-          style={styles.albumImage}
-        />
-        <View style={styles.albumOverlay}>
-          <Text style={styles.albumCount}>{collection.photoCount} photos</Text>
-        </View>
-      </View>
-      <View style={styles.albumInfo}>
-        <Text style={styles.albumName}>{collection.name}</Text>
-        <TouchableOpacity
-          onPress={() => showCollectionMenu(collection.id, 'photo')}
-          style={styles.albumMenuButton}
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color="#666" />
-        </TouchableOpacity>
+      <Image source={{ uri: collection.coverPhoto }} style={styles.albumCoverPhoto} />
+      <View style={styles.albumCardInfo}>
+        <Text style={styles.albumCardName} numberOfLines={2}>{collection.name}</Text>
+        <Text style={styles.albumCardCount}>{collection.photoCount}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -351,21 +354,28 @@ const ProfileScreen = () => {
           {/* Photo Collections Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Photo Albums</Text>
+              <Text style={styles.sectionTitle}>Photos</Text>
               <TouchableOpacity onPress={createNewPhotoCollection} style={styles.addButton}>
                 <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
               </TouchableOpacity>
             </View>
-            
-            <View style={styles.albumsGrid}>
-              {data.photoCollections.map(renderPhotoAlbum)}
-            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.albumsGridHorizontal}
+            >
+              {chunkArray(data.photoCollections, 3).map((column, colIdx) => (
+                <View key={colIdx} style={styles.albumColumn}>
+                  {column.map((collection) => renderPhotoAlbum({ item: collection }))}
+                </View>
+              ))}
+            </ScrollView>
           </View>
 
           {/* Prompt Collections Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Prompt Collections</Text>
+              <Text style={styles.sectionTitle}>Prompts</Text>
               <TouchableOpacity onPress={createNewPromptCollection} style={styles.addButton}>
                 <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
               </TouchableOpacity>
@@ -490,53 +500,52 @@ const styles = StyleSheet.create({
   addButton: {
     padding: 4,
   },
-  albumsGrid: {
+  albumsGridHorizontal: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
     paddingHorizontal: 8,
+    paddingBottom: 8,
   },
-  albumContainer: {
-    width: ALBUM_SIZE,
-    marginBottom: 16,
+  albumColumn: {
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    marginRight: 16,
   },
-  albumCover: {
-    width: ALBUM_SIZE,
-    height: ALBUM_SIZE,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
-  },
-  albumImage: {
-    width: '100%',
-    height: '100%',
-  },
-  albumOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 8,
-  },
-  albumCount: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  albumInfo: {
+  albumCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    width: ALBUM_CARD_WIDTH,
+    height: ALBUM_CARD_HEIGHT,
+    marginHorizontal: 8,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    paddingRight: 8,
   },
-  albumName: {
-    fontSize: 16,
-    fontWeight: '500',
+  albumCoverPhoto: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    margin: 12,
+    backgroundColor: '#e0e0e0',
+  },
+  albumCardInfo: {
     flex: 1,
+    marginLeft: 8,
+    justifyContent: 'center',
   },
-  albumMenuButton: {
-    padding: 4,
+  albumCardName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  albumCardCount: {
+    fontSize: 14,
+    color: '#888',
   },
   promptCollection: {
     marginBottom: 24,

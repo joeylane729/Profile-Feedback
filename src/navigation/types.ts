@@ -3,6 +3,7 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;
+  AlbumDetail: { album: any };
 };
 
 export type AuthStackParamList = {
@@ -14,6 +15,7 @@ export type MainTabParamList = {
   Rate: NavigatorScreenParams<RateStackParamList>;
   Feedback: undefined;
   Profile: undefined;
+  AlbumDetail: { album: any };
 };
 
 export type RateStackParamList = {

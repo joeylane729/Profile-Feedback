@@ -5,7 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, AuthStackParamList, MainTabParamList, RateStackParamList } from './types';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -14,6 +14,7 @@ import RateScreen from '../screens/main/RateScreen';
 import FeedbackScreen from '../screens/main/FeedbackScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import BioRatingScreen from '../screens/main/BioRatingScreen';
+import AlbumDetailScreen from '../screens/main/AlbumDetailScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -74,16 +75,14 @@ const RateNavigator = () => {
 };
 
 const MainNavigator = () => {
-  console.log('=== MAIN NAVIGATOR RENDER ===');
+  const insets = useSafeAreaInsets();
   return (
     <MainTab.Navigator
       initialRouteName="Rate"
       screenOptions={({ route }) => {
-        console.log('Configuring tab for route:', route.name);
         return {
           tabBarIcon: ({ focused, color, size }) => {
             let iconName;
-
             if (route.name === 'Rate') {
               iconName = focused ? 'star' : 'star-outline';
             } else if (route.name === 'Feedback') {
@@ -91,7 +90,6 @@ const MainNavigator = () => {
             } else if (route.name === 'Profile') {
               iconName = focused ? 'person' : 'person-outline';
             }
-
             return <Ionicons name={iconName as any} size={size} color={color} />;
           },
           tabBarActiveTintColor: '#007AFF',
@@ -99,63 +97,35 @@ const MainNavigator = () => {
           headerShown: false,
           tabBarShowLabel: true,
           tabBarStyle: {
-            display: 'flex',
             backgroundColor: '#fff',
             borderTopWidth: 1,
             borderTopColor: '#eee',
-            height: 60,
-            paddingBottom: 8,
+            height: 60 + insets.bottom,
             paddingTop: 8,
+            paddingBottom: insets.bottom,
           },
         };
       }}
     >
-      <MainTab.Screen 
-        name="Rate" 
-        component={RateNavigator}
-        options={{
-          tabBarLabel: 'Rate',
-        }}
-        listeners={{
-          focus: () => console.log('Rate tab focused'),
-        }}
-      />
-      <MainTab.Screen 
-        name="Feedback" 
-        component={FeedbackScreen}
-        options={{
-          tabBarLabel: 'Feedback',
-        }}
-        listeners={{
-          focus: () => console.log('Feedback tab focused'),
-        }}
-      />
-      <MainTab.Screen 
-        name="Profile" 
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-        }}
-        listeners={{
-          focus: () => console.log('Profile tab focused'),
-        }}
-      />
+      <MainTab.Screen name="Rate" component={RateNavigator} options={{ tabBarLabel: 'Rate' }} />
+      <MainTab.Screen name="Feedback" component={FeedbackScreen} options={{ tabBarLabel: 'Feedback' }} />
+      <MainTab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </MainTab.Navigator>
   );
 };
 
 const AppNavigator = () => {
   const { isAuthenticated } = useAuth();
-  console.log('=== APP NAVIGATOR RENDER ===');
-  console.log('isAuthenticated:', isAuthenticated);
-
   return (
     <SafeAreaProvider>
       <NavigationContainer>
         {!isAuthenticated ? (
           <AuthNavigator />
         ) : (
-          <MainNavigator />
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Main" component={MainNavigator} />
+            <Stack.Screen name="AlbumDetail" component={AlbumDetailScreen} />
+          </Stack.Navigator>
         )}
       </NavigationContainer>
     </SafeAreaProvider>
