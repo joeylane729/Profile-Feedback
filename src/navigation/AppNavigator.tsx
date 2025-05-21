@@ -14,7 +14,6 @@ import RateScreen from '../screens/main/RateScreen';
 import FeedbackScreen from '../screens/main/FeedbackScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import BioRatingScreen from '../screens/main/BioRatingScreen';
-import AlbumDetailScreen from '../screens/main/AlbumDetailScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -124,7 +123,6 @@ const AppNavigator = () => {
         ) : (
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Main" component={MainNavigator} />
-            <Stack.Screen name="AlbumDetail" component={AlbumDetailScreen} />
           </Stack.Navigator>
         )}
       </NavigationContainer>

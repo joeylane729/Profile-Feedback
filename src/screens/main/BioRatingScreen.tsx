@@ -1,3 +1,12 @@
+/**
+ * BioRatingScreen.tsx
+ *
+ * This screen allows users to rate and provide feedback on a user's bio and prompts.
+ * - Users can rate the bio and each prompt on a scale.
+ * - Users can provide written feedback for the bio and prompts.
+ * - State and logic are managed locally for demonstration purposes.
+ */
+
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

@@ -1,3 +1,14 @@
+/**
+ * FeedbackScreen.tsx
+ *
+ * This screen displays feedback and ratings for the user's photos and prompts.
+ * - Users can view ranked photos, feedback summaries, and detailed feedback for each photo.
+ * - Users can page through their photos and see feedback for each.
+ * - Users can view prompt questions and answers, and see feedback for each prompt.
+ *
+ * State and logic are managed locally for demonstration purposes.
+ */
+
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, TextInput, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

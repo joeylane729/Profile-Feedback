@@ -1,3 +1,14 @@
+/**
+ * RateScreen.tsx
+ *
+ * This screen allows users to rate and compare pairs of photos, provide feedback, and view results.
+ * - Users are shown two photos at a time and asked which they prefer.
+ * - After all pairs are rated, users can provide positive and constructive feedback on selected photos.
+ * - Results are displayed at the end.
+ *
+ * State and logic are managed locally for demo purposes.
+ */
+
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, SafeAreaView, ScrollView, Modal, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RateStackParamList } from '../../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// Dummy photo data for demonstration
 const DUMMY_PHOTOS = [
   { id: '1', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60' },
   { id: '2', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60' },
@@ -14,6 +26,7 @@ const DUMMY_PHOTOS = [
   { id: '5', uri: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&auto=format&fit=crop&q=60' },
 ];
 
+// Dummy profile with photos and prompts
 const DUMMY_PROFILE = {
   photos: DUMMY_PHOTOS,
   bio: "Adventure seeker and coffee enthusiast. Looking for someone to share life's little moments with. Love hiking, photography, and trying new restaurants. Always up for a spontaneous road trip or a quiet night in with a good book.",
@@ -24,6 +37,7 @@ const DUMMY_PROFILE = {
   ],
 };
 
+// Feedback options for users to select
 const FEEDBACK_OPTIONS = {
   positive: [
     "Great composition and framing",
@@ -41,20 +55,30 @@ const FEEDBACK_OPTIONS = {
   ]
 };
 
+/**
+ * Main RateScreen component
+ * Handles photo pairwise comparison, feedback, and results.
+ */
 const RateScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RateStackParamList>>();
+  // State for current photo pair index
   const [currentPair, setCurrentPair] = useState(0);
+  // State for photo ratings (final scores)
   const [ratings, setRatings] = useState<{ [key: string]: number }>({});
+  // State for user preferences during pairwise comparison
   const [preferences, setPreferences] = useState<{ [key: string]: number }>({});
+  // State for completion and feedback flow
   const [isComplete, setIsComplete] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'positive' | 'constructive'>('positive');
+  // State for feedback selection
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [photoFeedback, setPhotoFeedback] = useState<{ [key: string]: string[] }>({});
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const insets = useSafeAreaInsets();
 
+  // Generate all unique photo pairs for comparison
   const photoPairs: [number, number][] = [];
   for (let i = 0; i < DUMMY_PROFILE.photos.length; i++) {
     for (let j = i + 1; j < DUMMY_PROFILE.photos.length; j++) {
@@ -62,6 +86,10 @@ const RateScreen = () => {
     }
   }
 
+  /**
+   * Handle user preference for a photo in a pair
+   * @param preferredIndex 0 for first photo, 1 for second photo
+   */
   const handlePreference = (preferredIndex: number) => {
     const [photo1Index, photo2Index] = photoPairs[currentPair];
     const preferredPhoto = preferredIndex === 0 ? photo1Index : photo2Index;
@@ -76,7 +104,7 @@ const RateScreen = () => {
     if (currentPair < photoPairs.length - 1) {
       setCurrentPair(prev => prev + 1);
     } else {
-      // All pairs have been rated
+      // All pairs have been rated, calculate final ratings
       const finalRatings = Object.entries(preferences).reduce((acc, [photoId, score]) => {
         // Normalize scores to 1-10 range
         const normalizedScore = Math.round(((score + photoPairs.length) / (photoPairs.length * 2)) * 9 + 1);
@@ -88,11 +116,17 @@ const RateScreen = () => {
     }
   };
 
+  /**
+   * Handle selecting a photo for feedback
+   */
   const handlePhotoSelect = (photoId: string) => {
     setSelectedPhotoIndex(photoId);
     setShowFeedbackModal(true);
   };
 
+  /**
+   * Handle selecting feedback options for a photo
+   */
   const handleFeedbackSelect = (photoId: string, feedback: string) => {
     setPhotoFeedback(prev => {
       const currentFeedback = prev[photoId] || [];
@@ -109,11 +143,17 @@ const RateScreen = () => {
     });
   };
 
+  /**
+   * Handle closing the feedback modal
+   */
   const handleModalClose = () => {
     setShowFeedbackModal(false);
     setSelectedPhotoIndex(null);
   };
 
+  /**
+   * Handle finishing feedback selection for a photo
+   */
   const handleDone = () => {
     if (selectedPhotoIndex) {
       const hasFeedback = photoFeedback[selectedPhotoIndex]?.length > 0;
@@ -126,6 +166,9 @@ const RateScreen = () => {
     handleModalClose();
   };
 
+  /**
+   * Handle going back in the flow
+   */
   const handleBack = () => {
     if (showFeedback) {
       setShowFeedback(false);
@@ -137,6 +180,9 @@ const RateScreen = () => {
     }
   };
 
+  /**
+   * Handle continuing to the next feedback type or screen
+   */
   const handleContinue = () => {
     if (selectedPhotos.length < 2) {
       alert(`Please select 2 photos to provide ${feedbackType} feedback on`);
@@ -161,6 +207,7 @@ const RateScreen = () => {
     }
   };
 
+  // Get the current photo pair to display
   const [photo1Index, photo2Index] = photoPairs[currentPair];
   const photo1 = DUMMY_PROFILE.photos[photo1Index];
   const photo2 = DUMMY_PROFILE.photos[photo2Index];
