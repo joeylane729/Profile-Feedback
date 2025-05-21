@@ -14,6 +14,7 @@ export type MainTabParamList = {
   Rate: NavigatorScreenParams<RateStackParamList>;
   Feedback: undefined;
   Profile: undefined;
+  Discover: undefined;
 };
 
 export type RateStackParamList = {
