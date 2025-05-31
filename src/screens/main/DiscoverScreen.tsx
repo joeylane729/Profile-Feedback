@@ -242,9 +242,14 @@ const DiscoverScreen = () => {
       <SafeAreaView style={styles.safeArea}>
         <Animated.View style={[styles.container, { opacity: profileOpacity }]}>
           {/* Profile Name and Age */}
-          <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 8, flexDirection: 'row', justifyContent: 'center' }}>
+          <View style={{ alignItems: 'center', marginTop: 36, marginBottom: 0, flexDirection: 'row', justifyContent: 'center' }}>
             <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#222' }}>{profile.name}</Text>
             <Text style={{ fontSize: 24, color: '#222', marginLeft: 10, fontWeight: 'normal' }}>{profile.age}</Text>
+          </View>
+          {/* Profile Location */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, marginTop: 6 }}>
+            <Ionicons name="location-outline" size={18} color="#666" style={{ marginRight: 4 }} />
+            <Text style={{ fontSize: 16, color: '#666' }}>{profile.location}</Text>
           </View>
           {/* Photo Carousel */}
           <View style={styles.photoContainer}>
