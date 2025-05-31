@@ -10,12 +10,13 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, SafeAreaView, ScrollView, Modal, Animated } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, SafeAreaView, ScrollView, Modal, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RateStackParamList } from '../../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../../config/theme';
 
 // Dummy photo data for demonstration
 const DUMMY_PHOTOS = [
@@ -185,7 +186,7 @@ const RateScreen = () => {
    */
   const handleContinue = () => {
     if (selectedPhotos.length < 2) {
-      alert(`Please select 2 photos to provide ${feedbackType} feedback on`);
+      Alert.alert(`Please select 2 photos to provide ${feedbackType} feedback on`);
       return;
     }
     
@@ -194,7 +195,7 @@ const RateScreen = () => {
     );
     
     if (incompletePhotos.length > 0) {
-      alert('Please provide feedback for all selected photos');
+      Alert.alert('Please provide feedback for all selected photos');
       return;
     }
 
@@ -400,11 +401,11 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',

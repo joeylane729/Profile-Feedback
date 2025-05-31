@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RateStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../config/theme';
 
 const DUMMY_PROFILE = {
   bio: "Adventure seeker and coffee enthusiast. Looking for someone to share life's little moments with. Love hiking, photography, and trying new restaurants. Always up for a spontaneous road trip or a quiet night in with a good book.",
@@ -142,11 +143,11 @@ const BioRatingScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',

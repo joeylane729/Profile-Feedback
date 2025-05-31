@@ -31,6 +31,7 @@ import { useNavigation } from '@react-navigation/native';
 import { MainTabParamList } from '../../navigation/types';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { colors } from '../../config/theme';
 
 const { width } = Dimensions.get('window');
 const PHOTO_SIZE = (width - 48) / 3; // 3 photos per row with padding
@@ -179,8 +180,6 @@ const ProfileScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
@@ -276,7 +275,11 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',

@@ -12,6 +12,7 @@ import { config } from '../config';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { colors } from '../config/theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -179,9 +180,16 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 10,
+    backgroundColor: '#FFFDF7',
+    borderRadius: 16,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F3E9D2',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   title: {
     fontSize: 24,

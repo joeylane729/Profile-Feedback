@@ -13,6 +13,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, TextInput, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../../config/theme';
 
 type PhotoFeedback = {
   comment: string;
@@ -293,133 +294,133 @@ const FeedbackScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Feedback</Text>
         </View>
-      </SafeAreaView>
-      <ScrollView style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Photo Rankings</Text>
-          <Text style={styles.subtitle}>Based on {DUMMY_FEEDBACK.totalRatings} ratings</Text>
-          
-          <View style={styles.photosGrid}>
-            {currentPhotos.map((photo, index) => (
-              <PhotoItem 
-                key={photo.id} 
-                photo={photo} 
-                rank={startIndex + index + 1} 
-                onSelect={setSelectedPhoto}
-              />
-            ))}
-          </View>
-
-          <View style={styles.paginationContainer}>
-            <TouchableOpacity 
-              style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
-              onPress={handlePrevPage}
-              disabled={currentPage === 1}
-            >
-              <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
-            </TouchableOpacity>
+        <ScrollView style={styles.content}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Photo Rankings</Text>
+            <Text style={styles.subtitle}>Based on {DUMMY_FEEDBACK.totalRatings} ratings</Text>
             
-            <Text style={styles.pageText}>
-              Page {currentPage} of {totalPages}
-            </Text>
-            
-            <TouchableOpacity 
-              style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
-              onPress={handleNextPage}
-              disabled={currentPage === totalPages}
-            >
-              <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bio Rating</Text>
-          <View style={styles.ratingSummary}>
-            <Text style={styles.ratingNumber}>{DUMMY_FEEDBACK.bio.rating.toFixed(1)}</Text>
-            <View style={styles.starsContainer}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Ionicons
-                  key={star}
-                  name={star <= Math.round(DUMMY_FEEDBACK.bio.rating) ? 'star' : 'star-outline'}
-                  size={24}
-                  color="#FFD700"
+            <View style={styles.photosGrid}>
+              {currentPhotos.map((photo, index) => (
+                <PhotoItem 
+                  key={photo.id} 
+                  photo={photo} 
+                  rank={startIndex + index + 1} 
+                  onSelect={setSelectedPhoto}
                 />
               ))}
             </View>
-            <Text style={styles.totalRatings}>{DUMMY_FEEDBACK.bio.totalRatings} ratings</Text>
+
+            <View style={styles.paginationContainer}>
+              <TouchableOpacity 
+                style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
+                onPress={handlePrevPage}
+                disabled={currentPage === 1}
+              >
+                <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
+              </TouchableOpacity>
+              
+              <Text style={styles.pageText}>
+                Page {currentPage} of {totalPages}
+              </Text>
+              
+              <TouchableOpacity 
+                style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
+                onPress={handleNextPage}
+                disabled={currentPage === totalPages}
+              >
+                <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.ratingBreakdown}>
-            {[5, 4, 3, 2, 1].map((rating) => (
-              <RatingBar
-                key={rating}
-                rating={rating}
-                count={DUMMY_FEEDBACK.bio.breakdown[rating as keyof typeof DUMMY_FEEDBACK.bio.breakdown]}
-                total={DUMMY_FEEDBACK.bio.totalRatings}
-              />
-            ))}
-          </View>
-
-          <View style={styles.feedbackContainer}>
-            <Text style={styles.feedbackTitle}>Common Feedback</Text>
-            {DUMMY_FEEDBACK.bio.feedback.slice(0, 3).map((item, index) => (
-              <FeedbackComment key={index} comment={item.comment} count={item.count} />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Prompt Ratings</Text>
-          {DUMMY_FEEDBACK.prompts.map((prompt) => (
-            <View key={prompt.id} style={styles.promptItem}>
-              <Text style={styles.promptQuestion}>{prompt.question}</Text>
-              <View style={styles.ratingSummary}>
-                <Text style={styles.ratingNumber}>{prompt.rating.toFixed(1)}</Text>
-                <View style={styles.starsContainer}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Ionicons
-                      key={star}
-                      name={star <= Math.round(prompt.rating) ? 'star' : 'star-outline'}
-                      size={20}
-                      color="#FFD700"
-                    />
-                  ))}
-                </View>
-                <Text style={styles.totalRatings}>{prompt.totalRatings} ratings</Text>
-              </View>
-              <View style={styles.ratingBreakdown}>
-                {[5, 4, 3, 2, 1].map((rating) => (
-                  <RatingBar
-                    key={rating}
-                    rating={rating}
-                    count={prompt.breakdown[rating as keyof typeof prompt.breakdown]}
-                    total={prompt.totalRatings}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Bio Rating</Text>
+            <View style={styles.ratingSummary}>
+              <Text style={styles.ratingNumber}>{DUMMY_FEEDBACK.bio.rating.toFixed(1)}</Text>
+              <View style={styles.starsContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Ionicons
+                    key={star}
+                    name={star <= Math.round(DUMMY_FEEDBACK.bio.rating) ? 'star' : 'star-outline'}
+                    size={24}
+                    color="#FFD700"
                   />
                 ))}
               </View>
-              <View style={styles.feedbackContainer}>
-                <Text style={styles.feedbackTitle}>Common Feedback</Text>
-                {prompt.feedback.slice(0, 3).map((item, index) => (
-                  <FeedbackComment key={index} comment={item.comment} count={item.count} />
-                ))}
-              </View>
+              <Text style={styles.totalRatings}>{DUMMY_FEEDBACK.bio.totalRatings} ratings</Text>
             </View>
-          ))}
-        </View>
 
-        <PhotoFeedbackModal 
-          photo={selectedPhoto} 
-          visible={!!selectedPhoto} 
-          onClose={() => setSelectedPhoto(null)} 
-        />
-      </ScrollView>
-    </View>
+            <View style={styles.ratingBreakdown}>
+              {[5, 4, 3, 2, 1].map((rating) => (
+                <RatingBar
+                  key={rating}
+                  rating={rating}
+                  count={DUMMY_FEEDBACK.bio.breakdown[rating as keyof typeof DUMMY_FEEDBACK.bio.breakdown]}
+                  total={DUMMY_FEEDBACK.bio.totalRatings}
+                />
+              ))}
+            </View>
+
+            <View style={styles.feedbackContainer}>
+              <Text style={styles.feedbackTitle}>Common Feedback</Text>
+              {DUMMY_FEEDBACK.bio.feedback.slice(0, 3).map((item, index) => (
+                <FeedbackComment key={index} comment={item.comment} count={item.count} />
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Prompt Ratings</Text>
+            {DUMMY_FEEDBACK.prompts.map((prompt) => (
+              <View key={prompt.id} style={styles.promptItem}>
+                <Text style={styles.promptQuestion}>{prompt.question}</Text>
+                <View style={styles.ratingSummary}>
+                  <Text style={styles.ratingNumber}>{prompt.rating.toFixed(1)}</Text>
+                  <View style={styles.starsContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= Math.round(prompt.rating) ? 'star' : 'star-outline'}
+                        size={20}
+                        color="#FFD700"
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.totalRatings}>{prompt.totalRatings} ratings</Text>
+                </View>
+                <View style={styles.ratingBreakdown}>
+                  {[5, 4, 3, 2, 1].map((rating) => (
+                    <RatingBar
+                      key={rating}
+                      rating={rating}
+                      count={prompt.breakdown[rating as keyof typeof prompt.breakdown]}
+                      total={prompt.totalRatings}
+                    />
+                  ))}
+                </View>
+                <View style={styles.feedbackContainer}>
+                  <Text style={styles.feedbackTitle}>Common Feedback</Text>
+                  {prompt.feedback.slice(0, 3).map((item, index) => (
+                    <FeedbackComment key={index} comment={item.comment} count={item.count} />
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <PhotoFeedbackModal 
+            photo={selectedPhoto} 
+            visible={!!selectedPhoto} 
+            onClose={() => setSelectedPhoto(null)} 
+          />
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -427,12 +428,13 @@ const { width } = Dimensions.get('window');
 const PHOTO_SIZE = (width - 60) / 3; // 3 photos per row with padding
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  safeArea: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   header: {
     padding: 20,

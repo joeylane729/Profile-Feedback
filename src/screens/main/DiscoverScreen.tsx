@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, 
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { colors } from '../../config/theme';
 
 const { width, height } = Dimensions.get('window');
 const PHOTO_CAROUSEL_HEIGHT = height;
@@ -325,11 +326,13 @@ const DiscoverScreen = () => {
                 <Text style={styles.viewProfileText}>
                   View Details
                 </Text>
-                <Ionicons 
-                  name={isProfileExpanded ? 'chevron-down' : 'chevron-up'} 
-                  size={24} 
-                  color="#fff" 
-                />
+                <View style={styles.chevronRight}>
+                  <Ionicons 
+                    name={isProfileExpanded ? 'chevron-down' : 'chevron-up'} 
+                    size={24} 
+                    color="#fff" 
+                  />
+                </View>
               </View>
             </TouchableOpacity>
           </View>
@@ -407,11 +410,11 @@ const DiscoverScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF8E7',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFF8E7',
+    backgroundColor: colors.background,
   },
   photoContainer: {
     flex: 1,
@@ -470,7 +473,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 48,
-    marginHorizontal: 32,
+    marginHorizontal: 90,
     zIndex: 3,
     overflow: 'hidden',
     borderRadius: 24,
@@ -492,16 +495,25 @@ const styles = StyleSheet.create({
   },
   viewProfileButtonContent: {
     flex: 1,
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
+    position: 'relative',
   },
   viewProfileText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-    marginRight: 8,
+    textAlign: 'center',
+  },
+  chevronRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 40,
   },
   expandableProfile: {
     position: 'absolute',

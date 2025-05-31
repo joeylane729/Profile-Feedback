@@ -6,6 +6,7 @@ import { RootStackParamList, AuthStackParamList, MainTabParamList, RateStackPara
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../config/theme';
 
 // Import screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -94,8 +95,8 @@ const MainNavigator = () => {
             }
             return <Ionicons name={iconName as any} size={size} color={color} />;
           },
-          tabBarActiveTintColor: '#007AFF',
-          tabBarInactiveTintColor: 'gray',
+          tabBarActiveTintColor: colors.button.primary,
+          tabBarInactiveTintColor: colors.text.secondary,
           headerShown: false,
           tabBarShowLabel: true,
           tabBarStyle: {

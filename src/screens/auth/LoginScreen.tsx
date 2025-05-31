@@ -8,6 +8,8 @@ import * as AuthSession from 'expo-auth-session';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import EmailAuth from '../../components/EmailAuth';
 import { config } from '../../config';
+import { colors } from '../../config/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -112,49 +114,56 @@ const LoginScreen = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Welcome to Profile Feedback</Text>
-        <Text style={styles.subtitle}>Sign in to get started</Text>
-        
-        <EmailAuth />
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Welcome to Profile Feedback</Text>
+          <Text style={styles.subtitle}>Sign in to get started</Text>
+          
+          <EmailAuth />
 
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or continue with</Text>
-          <View style={styles.dividerLine} />
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={handleGoogleLoginPress}
+          >
+            <Ionicons name="logo-google" size={24} color="#fff" />
+            <Text style={styles.buttonText}>Continue with Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.button, styles.appleButton]}
+            onPress={handleAppleLoginPress}
+          >
+            <Ionicons name="logo-apple" size={24} color="#fff" />
+            <Text style={styles.buttonText}>Continue with Apple</Text>
+          </TouchableOpacity>
         </View>
-        
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={handleGoogleLoginPress}
-        >
-          <Ionicons name="logo-google" size={24} color="#fff" />
-          <Text style={styles.buttonText}>Continue with Google</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.appleButton]}
-          onPress={handleAppleLoginPress}
-        >
-          <Ionicons name="logo-apple" size={24} color="#fff" />
-          <Text style={styles.buttonText}>Continue with Apple</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   scrollContainer: {
     flexGrow: 1,
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 24,
