@@ -78,19 +78,19 @@ const MainNavigator = () => {
   const insets = useSafeAreaInsets();
   return (
     <MainTab.Navigator
-      initialRouteName="Rate"
+      initialRouteName="Discover"
       screenOptions={({ route }) => {
         return {
           tabBarIcon: ({ focused, color, size }) => {
             let iconName;
-            if (route.name === 'Rate') {
+            if (route.name === 'Discover') {
+              iconName = focused ? 'compass' : 'compass-outline';
+            } else if (route.name === 'Rate') {
               iconName = focused ? 'star' : 'star-outline';
             } else if (route.name === 'Feedback') {
               iconName = focused ? 'chatbubble' : 'chatbubble-outline';
             } else if (route.name === 'Profile') {
               iconName = focused ? 'person' : 'person-outline';
-            } else if (route.name === 'Discover') {
-              iconName = focused ? 'compass' : 'compass-outline';
             }
             return <Ionicons name={iconName as any} size={size} color={color} />;
           },
@@ -109,10 +109,10 @@ const MainNavigator = () => {
         };
       }}
     >
+      <MainTab.Screen name="Discover" component={DiscoverScreen} options={{ tabBarLabel: 'Discover' }} />
       <MainTab.Screen name="Rate" component={RateNavigator} options={{ tabBarLabel: 'Rate' }} />
       <MainTab.Screen name="Feedback" component={FeedbackScreen} options={{ tabBarLabel: 'Feedback' }} />
       <MainTab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
-      <MainTab.Screen name="Discover" component={DiscoverScreen} options={{ tabBarLabel: 'Discover' }} />
     </MainTab.Navigator>
   );
 };
