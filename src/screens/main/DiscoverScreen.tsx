@@ -12,6 +12,7 @@ const PHOTO_SIZE = width;
 
 const DUMMY_PROFILES = [
   {
+    name: 'Samantha',
     photos: [
       { id: '1', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60' },
       { id: '2', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60' },
@@ -29,6 +30,7 @@ const DUMMY_PROFILES = [
     school: 'Stanford University',
   },
   {
+    name: 'Alex',
     photos: [
       { id: '1', uri: 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&auto=format&fit=crop&q=60' },
       { id: '2', uri: 'https://images.unsplash.com/photo-1465101178521-c1a9136a3fd9?w=800&auto=format&fit=crop&q=60' },
@@ -44,6 +46,7 @@ const DUMMY_PROFILES = [
     school: 'NYU',
   },
   {
+    name: 'Taylor',
     photos: [
       { id: '1', uri: 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&auto=format&fit=crop&q=60' },
       { id: '2', uri: 'https://images.unsplash.com/photo-1465101178521-c1a9136a3fd9?w=800&auto=format&fit=crop&q=60' },
@@ -238,6 +241,11 @@ const DiscoverScreen = () => {
     <>
       <SafeAreaView style={styles.safeArea}>
         <Animated.View style={[styles.container, { opacity: profileOpacity }]}>
+          {/* Profile Name and Age */}
+          <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 8, flexDirection: 'row', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#222' }}>{profile.name}</Text>
+            <Text style={{ fontSize: 24, color: '#222', marginLeft: 10, fontWeight: 'normal' }}>{profile.age}</Text>
+          </View>
           {/* Photo Carousel */}
           <View style={styles.photoContainer}>
             <FlatList
@@ -268,74 +276,74 @@ const DiscoverScreen = () => {
               onPress={() => goToPhoto(activePhoto + 1)}
               activeOpacity={0.1}
             />
-            {/* Dots Indicator */}
-            <View style={styles.dotsContainer}>
-              {profile.photos.map((_: any, idx: number) => {
-                const scale = activePhotoAnim.interpolate({
-                  inputRange: [idx - 1, idx, idx + 1],
-                  outputRange: [1, 1.5, 1],
-                  extrapolate: 'clamp',
-                });
-                const backgroundColor = activePhotoAnim.interpolate({
-                  inputRange: [idx - 1, idx, idx + 1],
-                  outputRange: [
-                    'rgba(0,0,0,0.3)',
-                    '#333',
-                    'rgba(0,0,0,0.3)'
-                  ],
-                  extrapolate: 'clamp',
-                });
-                return (
-                  <Animated.View
-                    key={idx}
-                    style={[
-                      styles.dot,
-                      {
-                        transform: [{ scale }],
-                        backgroundColor,
-                      },
-                    ]}
-                  />
-                );
-              })}
-            </View>
-            {/* View Profile Button with Progress */}
-            <TouchableOpacity 
-              style={styles.viewProfileButton}
-              onPress={hasSeenLastPhoto ? toggleProfile : undefined}
-              disabled={!hasSeenLastPhoto}
-            >
-              <View style={styles.viewProfileButtonBackground}>
-                <Animated.View 
+          </View>
+          {/* Dots Indicator */}
+          <View style={styles.dotsContainerStacked}>
+            {profile.photos.map((_: any, idx: number) => {
+              const scale = activePhotoAnim.interpolate({
+                inputRange: [idx - 1, idx, idx + 1],
+                outputRange: [1, 1.5, 1],
+                extrapolate: 'clamp',
+              });
+              const backgroundColor = activePhotoAnim.interpolate({
+                inputRange: [idx - 1, idx, idx + 1],
+                outputRange: [
+                  'rgba(0,0,0,0.3)',
+                  '#333',
+                  'rgba(0,0,0,0.3)'
+                ],
+                extrapolate: 'clamp',
+              });
+              return (
+                <Animated.View
+                  key={idx}
                   style={[
-                    styles.viewProfileButtonProgress,
+                    styles.dot,
                     {
-                      width: progressAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                      backgroundColor: progressAnimation.interpolate({
-                        inputRange: [0, 0.99, 1],
-                        outputRange: ['#999', '#999', '#666']
-                      })
-                    }
-                  ]} 
+                      transform: [{ scale }],
+                      backgroundColor,
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
+          {/* View Profile Button with Progress */}
+          <TouchableOpacity 
+            style={styles.viewProfileButtonStacked}
+            onPress={hasSeenLastPhoto ? toggleProfile : undefined}
+            disabled={!hasSeenLastPhoto}
+          >
+            <View style={styles.viewProfileButtonBackground}>
+              <Animated.View 
+                style={[
+                  styles.viewProfileButtonProgress,
+                  {
+                    width: progressAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                    backgroundColor: progressAnimation.interpolate({
+                      inputRange: [0, 0.99, 1],
+                      outputRange: ['#999', '#999', '#666']
+                    })
+                  }
+                ]} 
+              />
+            </View>
+            <View style={styles.viewProfileButtonContent}>
+              <Text style={styles.viewProfileText}>
+                View Details
+              </Text>
+              <View style={styles.chevronRight}>
+                <Ionicons 
+                  name={isProfileExpanded ? 'chevron-down' : 'chevron-up'} 
+                  size={24} 
+                  color="#fff" 
                 />
               </View>
-              <View style={styles.viewProfileButtonContent}>
-                <Text style={styles.viewProfileText}>
-                  View Details
-                </Text>
-                <View style={styles.chevronRight}>
-                  <Ionicons 
-                    name={isProfileExpanded ? 'chevron-down' : 'chevron-up'} 
-                    size={24} 
-                    color="#fff" 
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
 
@@ -372,7 +380,6 @@ const DiscoverScreen = () => {
         >
           {/* Key Info */}
           <View style={styles.infoSection}>
-            <Text style={styles.infoText}>Age: {profile.age}</Text>
             <Text style={styles.infoText}>Location: {profile.location}</Text>
             <Text style={styles.infoText}>Job: {profile.job}</Text>
             <Text style={styles.infoText}>School: {profile.school}</Text>
@@ -445,14 +452,14 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   dotsContainer: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
+    // ... remove absolute positioning ...
+  },
+  dotsContainerStacked: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 3,
+    marginTop: 16,
+    marginBottom: 8,
   },
   dot: {
     width: 8,
@@ -468,15 +475,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   viewProfileButton: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
+    display: 'none', // hide old style
+  },
+  viewProfileButtonStacked: {
     height: 48,
     marginHorizontal: 90,
-    zIndex: 3,
+    marginTop: 8,
+    marginBottom: 24,
     overflow: 'hidden',
     borderRadius: 24,
+    backgroundColor: 'transparent',
   },
   viewProfileButtonBackground: {
     position: 'absolute',
