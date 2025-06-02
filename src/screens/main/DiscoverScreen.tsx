@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -13,6 +13,14 @@ const PHOTO_SIZE = width;
 const DUMMY_PROFILES = [
   {
     name: 'Samantha',
+    age: 28,
+    location: 'San Francisco, CA',
+    job: 'Product Designer',
+    school: 'Stanford University',
+    height: `5'7"`,
+    gender: 'Female',
+    languages: 'English, Spanish',
+    religion: 'Agnostic',
     photos: [
       { id: '1', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60' },
       { id: '2', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60' },
@@ -24,13 +32,17 @@ const DUMMY_PROFILES = [
       { id: '1', question: "I'm looking for", answer: "Someone who can make me laugh and isn't afraid to be themselves." },
       { id: '2', question: "My ideal first date", answer: "Coffee and a walk in the park, followed by a visit to a local art gallery or museum." },
     ],
-    age: 28,
-    location: 'San Francisco, CA',
-    job: 'Product Designer',
-    school: 'Stanford University',
   },
   {
     name: 'Alex',
+    age: 31,
+    location: 'New York, NY',
+    job: 'Software Engineer',
+    school: 'NYU',
+    height: `6'0"`,
+    gender: 'Male',
+    languages: 'English, French',
+    religion: 'None',
     photos: [
       { id: '1', uri: 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&auto=format&fit=crop&q=60' },
       { id: '2', uri: 'https://images.unsplash.com/photo-1465101178521-c1a9136a3fd9?w=800&auto=format&fit=crop&q=60' },
@@ -40,13 +52,17 @@ const DUMMY_PROFILES = [
       { id: '1', question: "A fact about me", answer: "I once biked across the country." },
       { id: '2', question: "Favorite food", answer: "Sushi and tacos!" },
     ],
-    age: 31,
-    location: 'New York, NY',
-    job: 'Software Engineer',
-    school: 'NYU',
   },
   {
     name: 'Taylor',
+    age: 26,
+    location: 'Austin, TX',
+    job: 'Photographer',
+    school: 'UT Austin',
+    height: `5'9"`,
+    gender: 'Non-binary',
+    languages: 'English',
+    religion: 'Spiritual',
     photos: [
       { id: '1', uri: 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&auto=format&fit=crop&q=60' },
       { id: '2', uri: 'https://images.unsplash.com/photo-1465101178521-c1a9136a3fd9?w=800&auto=format&fit=crop&q=60' },
@@ -55,10 +71,6 @@ const DUMMY_PROFILES = [
       { id: '1', question: "My weekend plans", answer: "Hiking and brunch with friends." },
       { id: '2', question: "Best travel story", answer: "Got lost in Tokyo and found the best ramen shop." },
     ],
-    age: 26,
-    location: 'Austin, TX',
-    job: 'Photographer',
-    school: 'UT Austin',
   },
 ];
 
@@ -206,13 +218,28 @@ const DiscoverScreen = () => {
   ).current;
 
   const toggleProfile = () => {
-    const toValue = isProfileExpanded ? 0 : 1;
+    if (!isProfileExpanded) {
+      Animated.timing(expandAnimation, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+      setIsProfileExpanded(true);
+    } else {
+      handleCloseProfile();
+    }
+  };
+
+  // Animate popup down before closing
+  const handleCloseProfile = () => {
     Animated.timing(expandAnimation, {
-      toValue,
+      toValue: 0,
       duration: 300,
       useNativeDriver: true,
-    }).start();
-    setIsProfileExpanded(!isProfileExpanded);
+    }).start(() => {
+      setIsProfileExpanded(false);
+      pan.setValue(0);
+    });
   };
 
   const getProgressWidth = () => {
@@ -352,69 +379,84 @@ const DiscoverScreen = () => {
         </Animated.View>
       </SafeAreaView>
 
-      {/* Expandable Profile Section - Now outside SafeAreaView */}
-      <Animated.View 
-        style={[
-          styles.expandableProfile, 
-          { 
-            bottom: 0,
-            transform: [{ translateY }],
-            height: height * 0.8
-          }
-        ]}
-      >
-        {/* Hide Profile Button with PanResponder */}
-        <View {...panResponder.panHandlers}>
-          <TouchableOpacity 
-            style={styles.hideProfileButton}
-            onPress={toggleProfile}
+      {/* Expandable Profile Section with Overlay */}
+      {isProfileExpanded && (
+        <View style={styles.popupOverlay}>
+          <TouchableWithoutFeedback onPress={handleCloseProfile}>
+            <View style={styles.popupOverlayBg} />
+          </TouchableWithoutFeedback>
+          <Animated.View 
+            style={[
+              styles.expandableProfile, 
+              { 
+                bottom: 0,
+                transform: [{ translateY }],
+                height: height * 0.8
+              }
+            ]}
           >
-            <View style={styles.hideProfileBar} />
-          </TouchableOpacity>
-        </View>
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.profileScroll}
-          contentContainerStyle={[
-            styles.profileContent,
-            { paddingBottom: insets.bottom + tabBarHeight + 40 }
-          ]}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={isProfileExpanded}
-          bounces={false}
-        >
-          {/* Key Info */}
-          <View style={styles.infoSection}>
-            <Text style={styles.infoText}>Location: {profile.location}</Text>
-            <Text style={styles.infoText}>Job: {profile.job}</Text>
-            <Text style={styles.infoText}>School: {profile.school}</Text>
-          </View>
-          {/* Prompts */}
-          <View style={styles.promptsSection}>
-            {profile.prompts.map((prompt: any) => (
-              <View key={prompt.id} style={styles.promptBox}>
-                <Text style={styles.promptQuestion}>{prompt.question}</Text>
-                <Text style={styles.promptAnswer}>{prompt.answer}</Text>
-              </View>
-            ))}
-          </View>
-          {/* Like Likelihood Question */}
-          <View style={styles.likelihoodSection}>
-            <Text style={styles.likelihoodQuestion}>How likely are you to like this person?</Text>
-            <View style={styles.likelihoodOptions}>
-              {LIKE_OPTIONS.map(option => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={styles.likelihoodButton}
-                  onPress={handleOptionSelect}
-                >
-                  <Text style={styles.likelihoodButtonText}>{option.label}</Text>
-                </TouchableOpacity>
-              ))}
+            {/* Hide Profile Button with PanResponder */}
+            <View {...panResponder.panHandlers}>
+              <TouchableOpacity 
+                style={styles.hideProfileButton}
+                onPress={handleCloseProfile}
+              >
+                <View style={styles.hideProfileBar} />
+              </TouchableOpacity>
             </View>
-          </View>
-        </ScrollView>
-      </Animated.View>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.profileScroll}
+              contentContainerStyle={[
+                styles.profileContent,
+                { paddingBottom: insets.bottom + tabBarHeight + 40 }
+              ]}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={isProfileExpanded}
+              bounces={false}
+            >
+              {/* About Me Section */}
+              <View style={styles.sectionCard}>
+                <Text style={styles.infoHeader}>About Me</Text>
+                <View style={styles.aboutMeItemRow}><Ionicons name="briefcase-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.job}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="school-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.school}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="body-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.height}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="male-female-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.gender}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="language-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.languages}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="book-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.religion}</Text></View>
+              </View>
+              <View style={styles.fullWidthDivider} />
+
+              {/* Prompt Responses as a Single Section */}
+              <View style={styles.promptsContainer}>
+                {profile.prompts.map((prompt: any) => (
+                  <View key={prompt.id} style={styles.promptBox}>
+                    <Text style={styles.promptQuestion}>{prompt.question}</Text>
+                    <Text style={styles.promptAnswer}>{prompt.answer}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.fullWidthDivider} />
+
+              {/* Likelihood Section */}
+              <View style={styles.likelihoodSectionCard}>
+                <Text style={styles.likelihoodQuestion}>How likely are you to like this person?</Text>
+                <View style={styles.likelihoodOptions}>
+                  {LIKE_OPTIONS.map(option => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={styles.likelihoodButton}
+                      onPress={handleOptionSelect}
+                    >
+                      <Text style={styles.likelihoodButtonText}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      )}
     </>
   );
 };
@@ -536,7 +578,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
-    zIndex: 10,
+    zIndex: 21,
   },
   hideProfileButton: {
     width: '100%',
@@ -562,30 +604,41 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     paddingHorizontal: 32,
   },
+  infoHeader: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
   infoText: {
     fontSize: 16,
-    color: '#333',
+    color: '#444',
     marginBottom: 4,
   },
   promptsSection: {
     paddingBottom: 24,
     paddingHorizontal: 24,
   },
+  promptsContainer: {
+  },
   promptBox: {
-    backgroundColor: '#f7f7f7',
     borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   promptQuestion: {
-    fontWeight: 'bold',
     fontSize: 15,
-    marginBottom: 6,
+    marginBottom: 4,
     color: '#222',
   },
   promptAnswer: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 20,
+    color: '#000',
+    lineHeight: 28,
+    fontWeight: '500',
   },
   likelihoodSection: {
     marginTop: 32,
@@ -617,6 +670,109 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#007AFF',
     fontWeight: '600',
+  },
+  aboutMeCard: {
+    backgroundColor: '#F5F6FA',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sectionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  promptsSectionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  promptsHeader: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
+  promptBoxInSection: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  likelihoodSectionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  aboutMeItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  aboutMeIcon: {
+    marginRight: 10,
+    width: 22,
+    textAlign: 'center',
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 24,
+    borderRadius: 1,
+  },
+  fullWidthDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 24,
+    marginHorizontal: -24,
+  },
+  popupOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
+  },
+  popupOverlayBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.12)',
   },
 });
 

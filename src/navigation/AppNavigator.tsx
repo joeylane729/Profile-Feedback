@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { RootStackParamList, AuthStackParamList, MainTabParamList, RateStackParamList } from './types';
+import { RootStackParamList, AuthStackParamList, MainTabParamList } from './types';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,16 +11,13 @@ import { colors } from '../config/theme';
 // Import screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
-import RateScreen from '../screens/main/RateScreen';
 import FeedbackScreen from '../screens/main/FeedbackScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
-import BioRatingScreen from '../screens/main/BioRatingScreen';
 import DiscoverScreen from '../screens/main/DiscoverScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const MainTab = createBottomTabNavigator<MainTabParamList>();
-const RateStack = createNativeStackNavigator<RateStackParamList>();
 
 const AuthNavigator = () => {
   console.log('=== AUTH NAVIGATOR RENDER ===');
@@ -44,37 +41,6 @@ const AuthNavigator = () => {
   );
 };
 
-const RateNavigator = () => {
-  console.log('=== RATE NAVIGATOR RENDER ===');
-  return (
-    <RateStack.Navigator 
-      initialRouteName="RatePhotos"
-      screenOptions={{ headerShown: false }}
-    >
-      <RateStack.Screen 
-        name="RatePhotos" 
-        component={RateScreen}
-        options={{
-          headerShown: false,
-        }}
-        listeners={{
-          focus: () => console.log('RatePhotos screen focused'),
-        }}
-      />
-      <RateStack.Screen 
-        name="RateBio" 
-        component={BioRatingScreen}
-        options={{
-          headerShown: false,
-        }}
-        listeners={{
-          focus: () => console.log('RateBio screen focused'),
-        }}
-      />
-    </RateStack.Navigator>
-  );
-};
-
 const MainNavigator = () => {
   const insets = useSafeAreaInsets();
   return (
@@ -86,8 +52,6 @@ const MainNavigator = () => {
             let iconName;
             if (route.name === 'Discover') {
               iconName = focused ? 'compass' : 'compass-outline';
-            } else if (route.name === 'Rate') {
-              iconName = focused ? 'star' : 'star-outline';
             } else if (route.name === 'Feedback') {
               iconName = focused ? 'chatbubble' : 'chatbubble-outline';
             } else if (route.name === 'Profile') {
@@ -111,7 +75,6 @@ const MainNavigator = () => {
       }}
     >
       <MainTab.Screen name="Discover" component={DiscoverScreen} options={{ tabBarLabel: 'Discover' }} />
-      <MainTab.Screen name="Rate" component={RateNavigator} options={{ tabBarLabel: 'Rate' }} />
       <MainTab.Screen name="Feedback" component={FeedbackScreen} options={{ tabBarLabel: 'Feedback' }} />
       <MainTab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </MainTab.Navigator>

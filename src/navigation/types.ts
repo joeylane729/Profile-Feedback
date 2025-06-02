@@ -15,9 +15,4 @@ export type MainTabParamList = {
   Feedback: undefined;
   Profile: undefined;
   Discover: undefined;
-};
-
-export type RateStackParamList = {
-  RatePhotos: undefined;
-  RateBio: undefined;
 }; 

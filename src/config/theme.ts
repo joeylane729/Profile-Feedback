@@ -1,5 +1,5 @@
 export const colors = {
-  background: '#FAFAFA', // offwhite, closer to white
+  background: '#FFFFFF', // pure white
   text: {
     primary: '#333333',
     secondary: '#666666',
