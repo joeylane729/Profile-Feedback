@@ -29,7 +29,6 @@
     "lodash.isequal": "^4.5.0",
     "react": "19.0.0",
     "react-native": "0.79.2",
-    "react-native-deck-swiper": "^2.0.17",
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-gesture-handler": "^2.25.0",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
