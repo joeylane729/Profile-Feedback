@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager, ViewStyle } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -90,7 +90,7 @@ const DiscoverScreen = () => {
   const [hasSeenLastPhoto, setHasSeenLastPhoto] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [photoFeedback, setPhotoFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral'}>({});
-  const [pendingFeedback, setPendingFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral'} | null>(null);
+  const [activeFeedback, setActiveFeedback] = useState<'keep' | 'remove' | 'neutral' | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const expandAnimation = useRef(new Animated.Value(0)).current;
@@ -98,38 +98,77 @@ const DiscoverScreen = () => {
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const activePhotoAnim = useRef(new Animated.Value(0)).current;
   const profileOpacity = useRef(new Animated.Value(1)).current;
-  // Animated opacity for back button
   const backButtonOpacity = useRef(new Animated.Value(0)).current;
+  const buttonOpacity = useRef(new Animated.Value(1)).current;
+  const removeButtonAnim = useRef(new Animated.Value(0)).current;
+  const neutralButtonAnim = useRef(new Animated.Value(0)).current;
+  const keepButtonAnim = useRef(new Animated.Value(0)).current;
 
   const profile = DUMMY_PROFILES[profileIndex];
 
+  const getSelectedButtonStyle = (type: 'remove' | 'neutral' | 'keep') => {
+    const currentPhotoId = profile.photos[activePhoto]?.id;
+    const isSelected = activeFeedback === type;
+    
+    switch (type) {
+      case 'remove':
+        return {
+          backgroundColor: isSelected ? 'rgba(239, 68, 68, 0.08)' : '#fff',
+          borderColor: isSelected ? '#ef4444' : '#FCA5A5',
+        };
+      case 'neutral':
+        return {
+          backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : '#fff',
+          borderColor: isSelected ? '#2563eb' : '#BFDBFE',
+        };
+      case 'keep':
+        return {
+          backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.08)' : '#fff',
+          borderColor: isSelected ? '#10b981' : '#6EE7B7',
+        };
+      default:
+        return {};
+    }
+  };
+
   const handlePhotoFeedback = (photoId: string, feedback: 'keep' | 'remove' | 'neutral') => {
     if (isTransitioning) return;
-    const nextPhotoFeedback = { ...photoFeedback, [photoId]: feedback };
-    setPendingFeedback(nextPhotoFeedback);
-    setPhotoFeedback(nextPhotoFeedback);
     setIsTransitioning(true);
+    setActiveFeedback(feedback);
+    const nextPhotoFeedback = { ...photoFeedback, [photoId]: feedback };
+    setPhotoFeedback(nextPhotoFeedback);
+
+    // Show selected state for a moment before transitioning
     setTimeout(() => {
       if (activePhoto === profile.photos.length - 1) {
         setHasSeenLastPhoto(true);
         animateProgress((profile.photos.filter(p => nextPhotoFeedback[p.id]).length) / profile.photos.length);
-        setIsTransitioning(false);
-        setPendingFeedback(null);
+        // Don't clear activeFeedback for the last photo
+        setTimeout(() => {
+          setIsTransitioning(false);
+        }, 220);
       } else {
         InteractionManager.runAfterInteractions(() => {
           goToPhoto(activePhoto + 1);
           animateProgress((profile.photos.filter(p => nextPhotoFeedback[p.id]).length) / profile.photos.length);
-          setIsTransitioning(false);
-          setPendingFeedback(null);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            setActiveFeedback(null);
+          }, 220);
         });
       }
-    }, 220); // 220ms delay for visual feedback
+    }, 300); // Show selected state for 300ms before transitioning
   };
 
   const goToPhoto = (index: number) => {
     if (index >= 0 && index < profile.photos.length) {
       flatListRef.current?.scrollToIndex({ index, animated: true });
       setActivePhoto(index);
+      // Set active feedback based on the photo's feedback
+      const photoId = profile.photos[index].id;
+      if (photoFeedback[photoId]) {
+        setActiveFeedback(photoFeedback[photoId]);
+      }
       // Animate active dot
       Animated.spring(activePhotoAnim, {
         toValue: index,
@@ -144,6 +183,11 @@ const DiscoverScreen = () => {
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / PHOTO_CAROUSEL_WIDTH);
     setActivePhoto(index);
+    // Set active feedback based on the photo's feedback
+    const photoId = profile.photos[index].id;
+    if (photoFeedback[photoId]) {
+      setActiveFeedback(photoFeedback[photoId]);
+    }
     Animated.spring(activePhotoAnim, {
       toValue: index,
       useNativeDriver: false,
@@ -163,6 +207,8 @@ const DiscoverScreen = () => {
       setActivePhoto(0);
       setIsProfileExpanded(false);
       setHasSeenLastPhoto(false);
+      setPhotoFeedback({}); // Reset photo feedback
+      setActiveFeedback(null); // Reset active feedback
       expandAnimation.setValue(0);
       pan.setValue(0);
       progressAnimation.setValue(0);
@@ -300,29 +346,6 @@ const DiscoverScreen = () => {
     })
   );
 
-  // Selected button styles
-  const getSelectedButtonStyle = (type: 'remove' | 'neutral' | 'keep') => {
-    switch (type) {
-      case 'remove':
-        return {
-          backgroundColor: 'rgba(239, 68, 68, 0.08)',
-          borderColor: '#ef4444',
-        };
-      case 'neutral':
-        return {
-          backgroundColor: 'rgba(59, 130, 246, 0.08)',
-          borderColor: '#2563eb',
-        };
-      case 'keep':
-        return {
-          backgroundColor: 'rgba(16, 185, 129, 0.08)',
-          borderColor: '#10b981',
-        };
-      default:
-        return {};
-    }
-  };
-
   return (
     <>
       <SafeAreaView style={styles.safeArea}>
@@ -370,50 +393,83 @@ const DiscoverScreen = () => {
               scrollEnabled={false}
             />
           </View>
+          {/* Photo Feedback Buttons */}
           <View style={styles.photoFeedbackOverlay}>
             <View style={styles.photoFeedbackButtons}>
-              <TouchableOpacity 
-                style={[
-                  styles.photoFeedbackButton,
-                  styles.neutralOutlineButton,
-                  styles.removeButton,
-                  (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'remove' && getSelectedButtonStyle('remove')
-                ]}
-                onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'remove')}
-                activeOpacity={0.7}
-                disabled={isTransitioning}
-              >
-                <MaterialCommunityIcons name="swap-horizontal" size={20} color={(pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'remove' ? '#ef4444' : '#222'} style={{ marginRight: 4 }} />
-                <Text style={[styles.photoFeedbackButtonText, (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'remove' && { color: '#ef4444' }]}>Remove</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.photoFeedbackButton,
-                  styles.neutralOutlineButton,
-                  styles.neutralButton,
-                  (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'neutral' && getSelectedButtonStyle('neutral')
-                ]}
-                onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'neutral')}
-                activeOpacity={0.7}
-                disabled={isTransitioning}
-              >
-                <MaterialCommunityIcons name="circle-outline" size={20} color={(pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'neutral' ? '#2563eb' : '#222'} style={{ marginRight: 4 }} />
-                <Text style={[styles.photoFeedbackButtonText, (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'neutral' && { color: '#2563eb' }]}>Neutral</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.photoFeedbackButton,
-                  styles.neutralOutlineButton,
-                  styles.keepButton,
-                  (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'keep' && getSelectedButtonStyle('keep')
-                ]}
-                onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'keep')}
-                activeOpacity={0.7}
-                disabled={isTransitioning}
-              >
-                <MaterialCommunityIcons name="check" size={20} color={(pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'keep' ? '#10b981' : '#222'} style={{ marginRight: 4 }} />
-                <Text style={[styles.photoFeedbackButtonText, (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'keep' && { color: '#10b981' }]}>Keep</Text>
-              </TouchableOpacity>
+              <Animated.View style={[
+                styles.photoFeedbackButton,
+                styles.neutralOutlineButton,
+                styles.removeButton,
+                getSelectedButtonStyle('remove')
+              ]}>
+                <TouchableOpacity 
+                  style={styles.photoFeedbackButtonContent}
+                  onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'remove')}
+                  activeOpacity={0.7}
+                  disabled={isTransitioning}
+                >
+                  <MaterialCommunityIcons 
+                    name="swap-horizontal" 
+                    size={20} 
+                    color={activeFeedback === 'remove' ? '#ef4444' : '#222'} 
+                    style={{ marginRight: 4 }} 
+                  />
+                  <Text style={[
+                    styles.photoFeedbackButtonText,
+                    activeFeedback === 'remove' && { color: '#ef4444' }
+                  ]}>Remove</Text>
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Animated.View style={[
+                styles.photoFeedbackButton,
+                styles.neutralOutlineButton,
+                styles.neutralButton,
+                getSelectedButtonStyle('neutral')
+              ]}>
+                <TouchableOpacity 
+                  style={styles.photoFeedbackButtonContent}
+                  onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'neutral')}
+                  activeOpacity={0.7}
+                  disabled={isTransitioning}
+                >
+                  <MaterialCommunityIcons 
+                    name="circle-outline" 
+                    size={20} 
+                    color={activeFeedback === 'neutral' ? '#2563eb' : '#222'} 
+                    style={{ marginRight: 4 }} 
+                  />
+                  <Text style={[
+                    styles.photoFeedbackButtonText,
+                    activeFeedback === 'neutral' && { color: '#2563eb' }
+                  ]}>Neutral</Text>
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Animated.View style={[
+                styles.photoFeedbackButton,
+                styles.neutralOutlineButton,
+                styles.keepButton,
+                getSelectedButtonStyle('keep')
+              ]}>
+                <TouchableOpacity 
+                  style={styles.photoFeedbackButtonContent}
+                  onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'keep')}
+                  activeOpacity={0.7}
+                  disabled={isTransitioning}
+                >
+                  <MaterialCommunityIcons 
+                    name="check" 
+                    size={20} 
+                    color={activeFeedback === 'keep' ? '#10b981' : '#222'} 
+                    style={{ marginRight: 4 }} 
+                  />
+                  <Text style={[
+                    styles.photoFeedbackButtonText,
+                    activeFeedback === 'keep' && { color: '#10b981' }
+                  ]}>Keep</Text>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
           </View>
           {/* View Profile Button with Progress */}
@@ -926,6 +982,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 6,
+  },
+  photoFeedbackButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
   },
 });
 
