@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager } from 'react-native';
+import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { colors } from '../../config/theme';
@@ -88,6 +88,9 @@ const DiscoverScreen = () => {
   const [activePhoto, setActivePhoto] = useState(0);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
   const [hasSeenLastPhoto, setHasSeenLastPhoto] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [photoFeedback, setPhotoFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral'}>({});
+  const [pendingFeedback, setPendingFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral'} | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const expandAnimation = useRef(new Animated.Value(0)).current;
@@ -95,8 +98,33 @@ const DiscoverScreen = () => {
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const activePhotoAnim = useRef(new Animated.Value(0)).current;
   const profileOpacity = useRef(new Animated.Value(1)).current;
+  // Animated opacity for back button
+  const backButtonOpacity = useRef(new Animated.Value(0)).current;
 
   const profile = DUMMY_PROFILES[profileIndex];
+
+  const handlePhotoFeedback = (photoId: string, feedback: 'keep' | 'remove' | 'neutral') => {
+    if (isTransitioning) return;
+    const nextPhotoFeedback = { ...photoFeedback, [photoId]: feedback };
+    setPendingFeedback(nextPhotoFeedback);
+    setPhotoFeedback(nextPhotoFeedback);
+    setIsTransitioning(true);
+    setTimeout(() => {
+      if (activePhoto === profile.photos.length - 1) {
+        setHasSeenLastPhoto(true);
+        animateProgress((profile.photos.filter(p => nextPhotoFeedback[p.id]).length) / profile.photos.length);
+        setIsTransitioning(false);
+        setPendingFeedback(null);
+      } else {
+        InteractionManager.runAfterInteractions(() => {
+          goToPhoto(activePhoto + 1);
+          animateProgress((profile.photos.filter(p => nextPhotoFeedback[p.id]).length) / profile.photos.length);
+          setIsTransitioning(false);
+          setPendingFeedback(null);
+        });
+      }
+    }, 220); // 220ms delay for visual feedback
+  };
 
   const goToPhoto = (index: number) => {
     if (index >= 0 && index < profile.photos.length) {
@@ -109,23 +137,6 @@ const DiscoverScreen = () => {
         tension: 40,
         friction: 7,
       }).start();
-      
-      // If we've seen the last photo, keep progress at 100%
-      if (hasSeenLastPhoto) {
-        progressAnimation.setValue(1);
-      } else {
-        // Otherwise, animate progress normally
-        Animated.timing(progressAnimation, {
-          toValue: index / (profile.photos.length - 1),
-          duration: 200,
-          useNativeDriver: false,
-        }).start();
-      }
-
-      // If we reach the last photo, enable the profile button
-      if (index === profile.photos.length - 1) {
-        setHasSeenLastPhoto(true);
-      }
     }
   };
 
@@ -242,9 +253,34 @@ const DiscoverScreen = () => {
     });
   };
 
-  const getProgressWidth = () => {
-    return ((activePhoto + 1) / profile.photos.length) * 100;
+  // Progress: total number of photos with feedback
+  const ratedCount = profile.photos.filter(p => photoFeedback[p.id]).length;
+  const progress = ratedCount / profile.photos.length;
+
+  // Animated progress value
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  // We'll animate progress after the photo transitions
+  const animateProgress = (toValue: number) => {
+    Animated.timing(progressAnim, {
+      toValue,
+      duration: 350,
+      useNativeDriver: false,
+    }).start();
   };
+
+  useEffect(() => {
+    Animated.timing(backButtonOpacity, {
+      toValue: activePhoto > 0 ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [activePhoto]);
+
+  // Sync progressAnim with initial progress on mount and when profile changes
+  useEffect(() => {
+    animateProgress(progress);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileIndex]);
 
   if (!profile) {
     return (
@@ -264,6 +300,29 @@ const DiscoverScreen = () => {
     })
   );
 
+  // Selected button styles
+  const getSelectedButtonStyle = (type: 'remove' | 'neutral' | 'keep') => {
+    switch (type) {
+      case 'remove':
+        return {
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          borderColor: '#ef4444',
+        };
+      case 'neutral':
+        return {
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          borderColor: '#2563eb',
+        };
+      case 'keep':
+        return {
+          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          borderColor: '#10b981',
+        };
+      default:
+        return {};
+    }
+  };
+
   return (
     <>
       <SafeAreaView style={styles.safeArea}>
@@ -278,6 +337,18 @@ const DiscoverScreen = () => {
             <Ionicons name="location-outline" size={18} color="#666" style={{ marginRight: 4 }} />
             <Text style={{ fontSize: 16, color: '#666' }}>{profile.location}</Text>
           </View>
+          {/* Back Button Above Photo */}
+          <Animated.View
+            style={[styles.backButtonAbovePhoto, { opacity: backButtonOpacity }]}
+            pointerEvents={activePhoto > 0 ? 'auto' : 'none'}
+          >
+            <TouchableOpacity 
+              style={{ borderRadius: 14, padding: 2 }}
+              onPress={() => goToPhoto(activePhoto - 1)}
+            >
+              <MaterialCommunityIcons name="arrow-u-left-top" size={24} color="#222" />
+            </TouchableOpacity>
+          </Animated.View>
           {/* Photo Carousel */}
           <View style={styles.photoContainer}>
             <FlatList
@@ -289,76 +360,78 @@ const DiscoverScreen = () => {
               showsHorizontalScrollIndicator={false}
               style={styles.carousel}
               contentContainerStyle={styles.carouselContent}
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <View style={styles.photoWrapper}>
                   <Image source={{ uri: item.uri }} style={styles.photo} />
                 </View>
               )}
               onScroll={handleScroll}
               scrollEventThrottle={16}
-            />
-            {/* Tap zones for previous/next photo */}
-            <TouchableOpacity
-              style={[styles.photoTapZone, { left: 0 }]}
-              onPress={() => goToPhoto(activePhoto - 1)}
-              activeOpacity={0.1}
-            />
-            <TouchableOpacity
-              style={[styles.photoTapZone, { right: 0 }]}
-              onPress={() => goToPhoto(activePhoto + 1)}
-              activeOpacity={0.1}
+              scrollEnabled={false}
             />
           </View>
-          {/* Dots Indicator */}
-          <View style={styles.dotsContainerStacked}>
-            {profile.photos.map((_: any, idx: number) => {
-              const scale = activePhotoAnim.interpolate({
-                inputRange: [idx - 1, idx, idx + 1],
-                outputRange: [1, 1.5, 1],
-                extrapolate: 'clamp',
-              });
-              const backgroundColor = activePhotoAnim.interpolate({
-                inputRange: [idx - 1, idx, idx + 1],
-                outputRange: [
-                  'rgba(0,0,0,0.3)',
-                  '#333',
-                  'rgba(0,0,0,0.3)'
-                ],
-                extrapolate: 'clamp',
-              });
-              return (
-                <Animated.View
-                  key={idx}
-                  style={[
-                    styles.dot,
-                    {
-                      transform: [{ scale }],
-                      backgroundColor,
-                    },
-                  ]}
-                />
-              );
-            })}
+          <View style={styles.photoFeedbackOverlay}>
+            <View style={styles.photoFeedbackButtons}>
+              <TouchableOpacity 
+                style={[
+                  styles.photoFeedbackButton,
+                  styles.neutralOutlineButton,
+                  styles.removeButton,
+                  (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'remove' && getSelectedButtonStyle('remove')
+                ]}
+                onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'remove')}
+                activeOpacity={0.7}
+                disabled={isTransitioning}
+              >
+                <MaterialCommunityIcons name="swap-horizontal" size={20} color={(pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'remove' ? '#ef4444' : '#222'} style={{ marginRight: 4 }} />
+                <Text style={[styles.photoFeedbackButtonText, (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'remove' && { color: '#ef4444' }]}>Remove</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.photoFeedbackButton,
+                  styles.neutralOutlineButton,
+                  styles.neutralButton,
+                  (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'neutral' && getSelectedButtonStyle('neutral')
+                ]}
+                onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'neutral')}
+                activeOpacity={0.7}
+                disabled={isTransitioning}
+              >
+                <MaterialCommunityIcons name="circle-outline" size={20} color={(pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'neutral' ? '#2563eb' : '#222'} style={{ marginRight: 4 }} />
+                <Text style={[styles.photoFeedbackButtonText, (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'neutral' && { color: '#2563eb' }]}>Neutral</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.photoFeedbackButton,
+                  styles.neutralOutlineButton,
+                  styles.keepButton,
+                  (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'keep' && getSelectedButtonStyle('keep')
+                ]}
+                onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'keep')}
+                activeOpacity={0.7}
+                disabled={isTransitioning}
+              >
+                <MaterialCommunityIcons name="check" size={20} color={(pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'keep' ? '#10b981' : '#222'} style={{ marginRight: 4 }} />
+                <Text style={[styles.photoFeedbackButtonText, (pendingFeedback ? pendingFeedback[profile.photos[activePhoto].id] : photoFeedback[profile.photos[activePhoto].id]) === 'keep' && { color: '#10b981' }]}>Keep</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           {/* View Profile Button with Progress */}
           <TouchableOpacity 
             style={styles.viewProfileButtonStacked}
-            onPress={hasSeenLastPhoto ? toggleProfile : undefined}
-            disabled={!hasSeenLastPhoto}
+            onPress={progress === 1 ? toggleProfile : undefined}
+            disabled={progress !== 1}
           >
             <View style={styles.viewProfileButtonBackground}>
               <Animated.View 
                 style={[
                   styles.viewProfileButtonProgress,
                   {
-                    width: progressAnimation.interpolate({
+                    width: progressAnim.interpolate({
                       inputRange: [0, 1],
                       outputRange: ['0%', '100%'],
                     }),
-                    backgroundColor: progressAnimation.interpolate({
-                      inputRange: [0, 0.99, 1],
-                      outputRange: ['#999', '#999', '#666']
-                    })
+                    backgroundColor: progress === 1 ? '#666' : '#999',
                   }
                 ]} 
               />
@@ -471,8 +544,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   photoContainer: {
-    flex: 1,
+    height: 400,
     position: 'relative',
+    marginTop: 24,
   },
   carousel: {
     flex: 1,
@@ -487,8 +561,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photo: {
-    width: PHOTO_SIZE,
-    height: PHOTO_SIZE,
+    width: '100%',
+    height: 400,
     resizeMode: 'cover',
   },
   photoTapZone: {
@@ -764,15 +838,94 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 20,
+    zIndex: 200,
   },
   popupOverlayBg: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.12)',
+  },
+  photoFeedbackOverlay: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  photoFeedbackButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    marginTop: 0,
+  },
+  photoFeedbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    width: 100,
+    height: 40,
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  neutralOutlineButton: {
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB', // very light gray
+  },
+  removeButton: {
+    borderColor: '#FCA5A5', // subtle red border
+  },
+  neutralButton: {
+    borderColor: '#BFDBFE', // subtle blue border
+  },
+  keepButton: {
+    borderColor: '#6EE7B7', // subtle green border
+  },
+  selectedRemoveButton: {
+    borderColor: '#FDEAD7', // very light orange
+  },
+  selectedNeutralButton: {
+    borderColor: '#E0E7FF', // very light blue
+  },
+  selectedKeepButton: {
+    borderColor: '#D1FAE5', // very light green
+  },
+  selectedRemoveText: {
+    color: '#F97316',
+  },
+  selectedNeutralText: {
+    color: '#2563EB',
+  },
+  selectedKeepText: {
+    color: '#059669',
+  },
+  photoFeedbackButtonText: {
+    color: '#222',
+    fontSize: 15,
+    fontWeight: '400',
+    letterSpacing: 0.3,
+    fontFamily: 'System',
+    textTransform: 'capitalize',
+  },
+  backButtonAbovePhoto: {
+    position: 'absolute',
+    left: 20,
+    top: 80, // adjust as needed to sit just above the photo
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 2,
+    zIndex: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 6,
   },
 });
 
