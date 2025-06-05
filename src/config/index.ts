@@ -5,13 +5,17 @@ import { Platform } from 'react-native';
 
 export const config = {
   api: {
-    baseUrl: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.247:3000',
+    baseUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
     endpoints: {
       auth: {
         login: '/api/auth/login',
         register: '/api/auth/register',
         me: '/api/auth/me',
         google: '/api/auth/google',
+      },
+      tests: {
+        start: '/api/tests/start',
+        status: '/api/tests/status',
       },
     },
   },

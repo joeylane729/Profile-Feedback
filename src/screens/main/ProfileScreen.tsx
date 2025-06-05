@@ -16,14 +16,14 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
   Alert,
-  Platform,
   Dimensions,
   FlatList,
+  Animated,
+  Platform,
+  ActionSheetIOS,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,45 +34,107 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { colors } from '../../config/theme';
 
 const { width } = Dimensions.get('window');
-const PHOTO_SIZE = (width - 48) / 3; // 3 photos per row with padding
+const PHOTO_SIZE = (width - 48) / 3;
 
-// Dummy data - in a real app, this would come from your backend/state management
-const INITIAL_DATA = {
+interface Photo {
+  id: string;
+  uri: string;
+}
+
+interface Prompt {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+type ProfileStatus = 'not_tested' | 'testing' | 'complete';
+
+interface ProfileData {
+  photos: Photo[];
+  bio: string;
+  prompts: Prompt[];
+  status: ProfileStatus;
+}
+
+interface TestStatus {
+  status: ProfileStatus;
+  testId?: string;
+  completedAt?: string;
+}
+
+// Mock test duration in milliseconds (5 seconds for demo purposes)
+const MOCK_TEST_DURATION = 5000;
+
+const REQUIRED_CREDITS = 10;
+
+const INITIAL_DATA: ProfileData = {
   photos: [
     { id: '1', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60' },
     { id: '2', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60' },
     { id: '3', uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=60' },
-    { id: '4', uri: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=60' },
   ],
+  bio: "Hi! I'm a software engineer who loves hiking, photography, and trying new restaurants. Looking for someone who shares my passion for adventure and good food.",
   prompts: [
-    {
-      id: '1',
-      question: "I'm looking for",
-      answer: "Someone who's passionate about life, loves to travel, and isn't afraid to be silly sometimes."
-    },
-    {
-      id: '2',
-      question: "My ideal first date",
-      answer: "A casual coffee or walk in the park, followed by dinner at a cozy restaurant."
-    }
+    { id: '1', question: "I'm looking for", answer: "Someone who can make me laugh and isn't afraid to be themselves." },
+    { id: '2', question: "My ideal first date", answer: "Coffee and a walk in the park, followed by a visit to a local art gallery or museum." },
+    { id: '3', question: "A fact about me", answer: "I once biked across the country!" },
   ],
-  bio: "Adventure seeker and coffee enthusiast. Love hiking, photography, and trying new restaurants. Looking for someone to share life's little moments with."
+  status: 'not_tested',
 };
 
 const ProfileScreen = () => {
   const { setIsAuthenticated, setToken, token } = useAuth();
   const [data, setData] = useState(INITIAL_DATA);
-  const [editingBio, setEditingBio] = useState(false);
-  const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
   const [userData, setUserData] = useState<{ name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [testStatus, setTestStatus] = useState<TestStatus | null>(null);
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const progressAnim = React.useRef(new Animated.Value(0)).current;
+  const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
 
   useEffect(() => {
     if (token) {
       fetchUserData();
     }
   }, [token]);
+
+  // Mock test completion
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (testStatus?.status === 'testing') {
+      // Simulate test completion after MOCK_TEST_DURATION
+      timeoutId = setTimeout(() => {
+        setTestStatus({
+          status: 'complete',
+          testId: testStatus.testId,
+          completedAt: new Date().toISOString(),
+        });
+        setData(prev => ({ ...prev, status: 'complete' }));
+      }, MOCK_TEST_DURATION);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [testStatus?.status]);
+
+  // Replace bouncing animation with progress bar animation
+  React.useEffect(() => {
+    if (testStatus?.status === 'testing') {
+      // Reset progress
+      progressAnim.setValue(0);
+      // Animate progress bar from 0 to 100%
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: MOCK_TEST_DURATION,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [testStatus?.status]);
 
   const fetchUserData = async () => {
     try {
@@ -118,55 +180,6 @@ const ProfileScreen = () => {
     }
   };
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Sorry, we need camera roll permissions to make this work!');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      const newPhoto = {
-        id: Date.now().toString(),
-        uri: result.assets[0].uri,
-      };
-      setData(prev => ({
-        ...prev,
-        photos: [...prev.photos, newPhoto]
-      }));
-    }
-  };
-
-  const removePhoto = (photoId: string) => {
-    Alert.alert(
-      'Remove Photo',
-      'Are you sure you want to remove this photo?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            setData(prev => ({
-              ...prev,
-              photos: prev.photos.filter(photo => photo.id !== photoId)
-            }));
-          }
-        }
-      ]
-    );
-  };
-
   // Helper to group photos into columns of 2
   const groupPhotosInColumns = (photos: { id: string; uri: string }[]) => {
     const columns: { id: string; uri: string }[][] = [];
@@ -176,25 +189,203 @@ const ProfileScreen = () => {
     return columns;
   };
 
+  const handleStartTesting = () => {
+    Alert.alert(
+      'Start Testing',
+      'Are you sure you want to start testing? Your profile will be locked until the test is complete.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Start Testing',
+          style: 'default',
+          onPress: () => {
+            // Mock starting a test
+            const mockTestId = `test_${Date.now()}`;
+            setTestStatus({
+              status: 'testing',
+              testId: mockTestId,
+            });
+            setData(prev => ({ ...prev, status: 'testing' }));
+          },
+        },
+      ],
+    );
+  };
+
+  const handleNewTest = () => {
+    Alert.alert(
+      'Start New Test',
+      'Are you sure you want to start a new test? Your profile will be locked until the test is complete.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Start New Test',
+          style: 'default',
+          onPress: () => {
+            // Mock starting a new test
+            const mockTestId = `test_${Date.now()}`;
+            setTestStatus({
+              status: 'testing',
+              testId: mockTestId,
+            });
+            setData(prev => ({ ...prev, status: 'testing' }));
+          },
+        },
+      ],
+    );
+  };
+
+  const handleViewResults = () => {
+    navigation.navigate('Feedback');
+  };
+
+  const showMenu = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Log Out'],
+          destructiveButtonIndex: 1,
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) handleLogout();
+        }
+      );
+    } else {
+      Alert.alert(
+        'Menu',
+        '',
+        [
+          { text: 'Log Out', style: 'destructive', onPress: handleLogout },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  };
+
+  const renderHeader = () => {
+    const progress = Math.min(credits / REQUIRED_CREDITS, 1);
+    const hasEnough = credits >= REQUIRED_CREDITS;
+    return (
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Profile</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setCredits(credits >= REQUIRED_CREDITS ? 7 : REQUIRED_CREDITS)}
+            style={styles.creditsInline}
+          >
+            <Ionicons name="wallet-outline" size={18} color="#555" />
+            <Text style={styles.creditsInlineText}>{credits}</Text>
+            <View style={styles.creditsInlineBarBg}>
+              <View style={[styles.creditsInlineBarFill, { width: `${progress * 100}%`, backgroundColor: hasEnough ? '#888' : '#B0B0B0' }]} />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={showMenu} style={styles.logoutButton}>
+            <Ionicons name="settings-outline" size={26} color="#555" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderStatusIndicator = () => {
+    switch (data.status) {
+      case 'not_tested':
+        return (
+          <View style={styles.statusContainer}>
+            <View style={styles.statusInfo}>
+              <Ionicons name="information-circle-outline" size={24} color="#666" />
+              <Text style={styles.statusInfoText}>Your profile is ready to be tested</Text>
+            </View>
+            <TouchableOpacity 
+              style={[styles.statusButton, styles.startTestButton]} 
+              onPress={handleStartTesting}
+            >
+              <Ionicons name="play-circle-outline" size={20} color="#fff" />
+              <Text style={styles.statusButtonText}>Start Testing</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 'testing':
+        return (
+          <View style={[styles.statusContainer, styles.testingContainer]}>
+            <View style={styles.statusInfo}>
+              <Ionicons name="time-outline" size={24} color="#fff" />
+              <Text style={[styles.statusInfoText, styles.testingText]}>
+                Testing in Progress
+              </Text>
+            </View>
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <Animated.View 
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.progressText}>Profile is locked</Text>
+            </View>
+          </View>
+        );
+      case 'complete':
+        const progress = Math.min(credits / REQUIRED_CREDITS, 1);
+        const hasEnough = credits >= REQUIRED_CREDITS;
+        return (
+          <View style={styles.statusContainer}>
+            <View style={[styles.statusInfo, styles.completeInfo]}>
+              <Ionicons name="checkmark-circle-outline" size={24} color="#34C759" />
+              <Text style={[styles.statusInfoText, styles.completeText]}>
+                Testing Complete
+              </Text>
+            </View>
+            <View style={styles.buttonGroup}>
+              <TouchableOpacity 
+                style={[styles.statusButton, styles.viewResultsButton]} 
+                onPress={handleViewResults}
+              >
+                <Ionicons name="analytics-outline" size={20} color="#fff" />
+                <Text style={styles.statusButtonText}>View Results</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.statusButton, styles.newTestButton, !hasEnough ? styles.disabledButton : null]} 
+                onPress={hasEnough ? handleNewTest : undefined}
+                disabled={!hasEnough}
+                activeOpacity={hasEnough ? 0.7 : 1}
+              >
+                <Ionicons name="refresh-outline" size={20} color={hasEnough ? '#fff' : '#888'} />
+                <Text style={[styles.statusButtonText, !hasEnough ? styles.disabledButtonText : null]}>New Test</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Ionicons name="log-out-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
+        {renderHeader()}
+        <View style={styles.statusSection}>
+          {renderStatusIndicator()}
         </View>
 
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Photos</Text>
-            <TouchableOpacity onPress={pickImage} style={styles.addButton}>
-              <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Photos</Text>
           <FlatList
             data={groupPhotosInColumns(data.photos)}
             renderItem={({ item: column }) => (
@@ -202,12 +393,6 @@ const ProfileScreen = () => {
                 {column.map(photo => (
                   <View key={photo.id} style={styles.photoContainer}>
                     <Image source={{ uri: photo.uri }} style={styles.photo} />
-                    <TouchableOpacity 
-                      style={styles.removeButton}
-                      onPress={() => removePhoto(photo.id)}
-                    >
-                      <Ionicons name="close-circle" size={24} color="#ff3b30" />
-                    </TouchableOpacity>
                   </View>
                 ))}
               </View>
@@ -222,20 +407,9 @@ const ProfileScreen = () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Bio</Text>
-          {editingBio ? (
-            <TextInput
-              style={styles.bioInput}
-              value={data.bio}
-              onChangeText={(text) => setData(prev => ({ ...prev, bio: text }))}
-              multiline
-              onBlur={() => setEditingBio(false)}
-              autoFocus
-            />
-          ) : (
-            <TouchableOpacity onPress={() => setEditingBio(true)} style={styles.clickableBox}>
-              <Text style={styles.bioText}>{data.bio}</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.contentBox}>
+            <Text style={styles.bioText}>{data.bio}</Text>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -243,27 +417,9 @@ const ProfileScreen = () => {
           {data.prompts.map((prompt) => (
             <View key={prompt.id} style={styles.promptContainer}>
               <Text style={styles.promptQuestion}>{prompt.question}</Text>
-              {editingPrompt === prompt.id ? (
-                <TextInput
-                  style={styles.promptInput}
-                  value={prompt.answer}
-                  onChangeText={(text) => {
-                    setData(prev => ({
-                      ...prev,
-                      prompts: prev.prompts.map(p =>
-                        p.id === prompt.id ? { ...p, answer: text } : p
-                      )
-                    }));
-                  }}
-                  multiline
-                  onBlur={() => setEditingPrompt(null)}
-                  autoFocus
-                />
-              ) : (
-                <TouchableOpacity onPress={() => setEditingPrompt(prompt.id)} style={styles.clickableBox}>
-                  <Text style={styles.promptAnswer}>{prompt.answer}</Text>
-                </TouchableOpacity>
-              )}
+              <View style={styles.contentBox}>
+                <Text style={styles.promptAnswer}>{prompt.answer}</Text>
+              </View>
             </View>
           ))}
         </View>
@@ -281,10 +437,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
@@ -295,25 +451,18 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     padding: 8,
+    marginLeft: 8,
   },
   section: {
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
-  },
-  addButton: {
-    padding: 4,
+    color: '#333',
   },
   photoGrid: {
     flexDirection: 'row',
@@ -336,20 +485,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 4,
   },
-  removeButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-  },
-  bioInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
+  contentBox: {
+    backgroundColor: '#f8f9fa',
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    minHeight: 100,
+    padding: 16,
+    marginBottom: 4,
+    marginTop: 2,
   },
   bioText: {
     fontSize: 16,
@@ -365,32 +506,136 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#333',
   },
-  promptInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    minHeight: 80,
-  },
   promptAnswer: {
     fontSize: 16,
     lineHeight: 24,
     color: '#333',
   },
-  clickableBox: {
-    borderWidth: 1,
-    borderColor: '#ccc',
+  statusSection: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
     backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 4,
-    marginTop: 2,
+  },
+  statusContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statusInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statusInfoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    color: '#666',
+  },
+  testingContainer: {
+    backgroundColor: '#007AFF',
+  },
+  testingText: {
+    color: '#fff',
+  },
+  completeInfo: {
+    backgroundColor: '#f0fff0',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  completeText: {
+    color: '#34C759',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statusButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    minWidth: 0,
+  },
+  viewResultsButton: {
+    backgroundColor: '#5856D6',
+  },
+  newTestButton: {
+    backgroundColor: '#34C759',
+  },
+  statusButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+    flexShrink: 1,
+    flexWrap: 'nowrap',
+    textAlign: 'center',
+  },
+  progressContainer: {
+    marginTop: 8,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 2,
+  },
+  progressText: {
+    color: '#fff',
+    fontSize: 14,
+    marginTop: 8,
+    opacity: 0.8,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  creditsInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    minWidth: 80,
+  },
+  creditsInlineText: {
+    fontSize: 15,
+    fontWeight: '400',
+    marginLeft: 4,
+    marginRight: 6,
+    color: '#222',
+  },
+  creditsInlineBarBg: {
+    width: 56,
+    height: 6,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  creditsInlineBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  disabledButton: {
+    backgroundColor: '#d1d1d6',
+  },
+  disabledButtonText: {
+    color: '#888',
   },
 });
 

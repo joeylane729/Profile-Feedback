@@ -14,10 +14,11 @@ import SignUpScreen from '../screens/auth/SignUpScreen';
 import FeedbackScreen from '../screens/main/FeedbackScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import DiscoverScreen from '../screens/main/DiscoverScreen';
+import CreateProfileScreen from '../screens/main/CreateProfileScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
-const MainTab = createBottomTabNavigator<MainTabParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const AuthNavigator = () => {
   console.log('=== AUTH NAVIGATOR RENDER ===');
@@ -41,43 +42,39 @@ const AuthNavigator = () => {
   );
 };
 
-const MainNavigator = () => {
-  const insets = useSafeAreaInsets();
+const MainTabNavigator = () => {
   return (
-    <MainTab.Navigator
-      initialRouteName="Discover"
-      screenOptions={({ route }) => {
-        return {
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-            if (route.name === 'Discover') {
-              iconName = focused ? 'compass' : 'compass-outline';
-            } else if (route.name === 'Feedback') {
-              iconName = focused ? 'chatbubble' : 'chatbubble-outline';
-            } else if (route.name === 'Profile') {
-              iconName = focused ? 'person' : 'person-outline';
-            }
-            return <Ionicons name={iconName as any} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: colors.button.primary,
-          tabBarInactiveTintColor: colors.text.secondary,
-          headerShown: false,
-          tabBarShowLabel: true,
-          tabBarStyle: {
-            backgroundColor: '#fff',
-            borderTopWidth: 1,
-            borderTopColor: '#eee',
-            height: 60 + insets.bottom,
-            paddingTop: 8,
-            paddingBottom: insets.bottom,
-          },
-        };
-      }}
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+
+          if (route.name === 'Discover') {
+            iconName = focused ? 'compass' : 'compass-outline';
+          } else if (route.name === 'Feedback') {
+            iconName = focused ? 'chatbubble' : 'chatbubble-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          } else if (route.name === 'CreateProfile') {
+            iconName = focused ? 'add-circle' : 'add-circle-outline';
+          }
+
+          return <Ionicons name={iconName as any} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: colors.button.primary,
+        tabBarInactiveTintColor: colors.text.secondary,
+        tabBarStyle: {
+          backgroundColor: colors.background,
+          borderTopColor: '#eee',
+        },
+        headerShown: false,
+      })}
     >
-      <MainTab.Screen name="Discover" component={DiscoverScreen} options={{ tabBarLabel: 'Discover' }} />
-      <MainTab.Screen name="Feedback" component={FeedbackScreen} options={{ tabBarLabel: 'Feedback' }} />
-      <MainTab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
-    </MainTab.Navigator>
+      <Tab.Screen name="Discover" component={DiscoverScreen} />
+      <Tab.Screen name="Feedback" component={FeedbackScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="CreateProfile" component={CreateProfileScreen} />
+    </Tab.Navigator>
   );
 };
 
@@ -90,7 +87,7 @@ const AppNavigator = () => {
           <AuthNavigator />
         ) : (
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Main" component={MainNavigator} />
+            <Stack.Screen name="Main" component={MainTabNavigator} />
           </Stack.Navigator>
         )}
       </NavigationContainer>
