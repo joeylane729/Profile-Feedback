@@ -23,7 +23,7 @@ import {
   Platform,
   ActionSheetIOS,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5, Fontisto } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +32,7 @@ import { MainTabParamList } from '../../navigation/types';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { colors } from '../../config/theme';
+import CreateProfileScreen from './CreateProfileScreen';
 
 const { width } = Dimensions.get('window');
 const PHOTO_SIZE = (width - 48) / 3;
@@ -92,6 +93,8 @@ const ProfileScreen = () => {
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const progressAnim = React.useRef(new Animated.Value(0)).current;
   const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
+  const [hasProfile, setHasProfile] = useState(false); // always false by default for now
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -112,7 +115,7 @@ const ProfileScreen = () => {
           completedAt: new Date().toISOString(),
         });
         setData(prev => ({ ...prev, status: 'complete' }));
-      }, MOCK_TEST_DURATION);
+      }, MOCK_TEST_DURATION) as unknown as NodeJS.Timeout;
     }
 
     return () => {
@@ -269,6 +272,19 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleProfileSave = () => {
+    setHasProfile(true);
+    setShowCreate(false);
+  };
+
+  // Handler for disabled new test button
+  const handleDisabledNewTest = () => {
+    Alert.alert(
+      "Not enough credits",
+      "You don't have enough credits to run another test. Review more profiles to earn more credits."
+    );
+  };
+
   const renderHeader = () => {
     const progress = Math.min(credits / REQUIRED_CREDITS, 1);
     const hasEnough = credits >= REQUIRED_CREDITS;
@@ -281,14 +297,14 @@ const ProfileScreen = () => {
             onPress={() => setCredits(credits >= REQUIRED_CREDITS ? 7 : REQUIRED_CREDITS)}
             style={styles.creditsInline}
           >
-            <Ionicons name="wallet-outline" size={18} color="#555" />
-            <Text style={styles.creditsInlineText}>{credits}</Text>
+            <FontAwesome5 name="coins" size={18} color="#444" style={{ marginRight: 4 }} />
+            <Text style={styles.creditsInlineText}>{credits}/{REQUIRED_CREDITS}</Text>
             <View style={styles.creditsInlineBarBg}>
-              <View style={[styles.creditsInlineBarFill, { width: `${progress * 100}%`, backgroundColor: hasEnough ? '#888' : '#B0B0B0' }]} />
+              <View style={[styles.creditsInlineBarFill, { width: `${progress * 100}%`, backgroundColor: hasEnough ? '#333' : '#bbb' }]} />
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={showMenu} style={styles.logoutButton}>
-            <Ionicons name="settings-outline" size={26} color="#555" />
+            <Ionicons name="settings-outline" size={26} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
@@ -305,11 +321,11 @@ const ProfileScreen = () => {
               <Text style={styles.statusInfoText}>Your profile is ready to be tested</Text>
             </View>
             <TouchableOpacity 
-              style={[styles.statusButton, styles.startTestButton]} 
+              style={[styles.statusButton, styles.startTestButton, { backgroundColor: '#222', borderWidth: 1, borderColor: '#ccc' }]} 
               onPress={handleStartTesting}
             >
               <Ionicons name="play-circle-outline" size={20} color="#fff" />
-              <Text style={styles.statusButtonText}>Start Testing</Text>
+              <Text style={[styles.statusButtonText, { color: '#fff' }]}>Start Testing</Text>
             </TouchableOpacity>
           </View>
         );
@@ -317,7 +333,7 @@ const ProfileScreen = () => {
         return (
           <View style={[styles.statusContainer, styles.testingContainer]}>
             <View style={styles.statusInfo}>
-              <Ionicons name="time-outline" size={24} color="#fff" />
+              <Ionicons name="time-outline" size={24} color="#222" />
               <Text style={[styles.statusInfoText, styles.testingText]}>
                 Testing in Progress
               </Text>
@@ -332,11 +348,12 @@ const ProfileScreen = () => {
                         inputRange: [0, 1],
                         outputRange: ['0%', '100%'],
                       }),
+                      backgroundColor: '#222',
                     }
                   ]} 
                 />
               </View>
-              <Text style={styles.progressText}>Profile is locked</Text>
+              <Text style={[styles.progressText, { color: '#222' }]}>Profile is locked</Text>
             </View>
           </View>
         );
@@ -346,7 +363,7 @@ const ProfileScreen = () => {
         return (
           <View style={styles.statusContainer}>
             <View style={[styles.statusInfo, styles.completeInfo]}>
-              <Ionicons name="checkmark-circle-outline" size={24} color="#34C759" />
+              <Ionicons name="checkmark-circle-outline" size={24} color="#222" />
               <Text style={[styles.statusInfoText, styles.completeText]}>
                 Testing Complete
               </Text>
@@ -356,17 +373,18 @@ const ProfileScreen = () => {
                 style={[styles.statusButton, styles.viewResultsButton]} 
                 onPress={handleViewResults}
               >
-                <Ionicons name="analytics-outline" size={20} color="#fff" />
+                <Ionicons name="analytics-outline" size={20} color="#222" />
                 <Text style={styles.statusButtonText}>View Results</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.statusButton, styles.newTestButton, !hasEnough ? styles.disabledButton : null]} 
-                onPress={hasEnough ? handleNewTest : undefined}
-                disabled={!hasEnough}
-                activeOpacity={hasEnough ? 0.7 : 1}
+                onPress={hasEnough ? handleNewTest : handleDisabledNewTest}
               >
-                <Ionicons name="refresh-outline" size={20} color={hasEnough ? '#fff' : '#888'} />
+                <Ionicons name="refresh-outline" size={20} color={hasEnough ? '#222' : '#777'} />
                 <Text style={[styles.statusButtonText, !hasEnough ? styles.disabledButtonText : null]}>New Test</Text>
+                {!hasEnough && (
+                  <MaterialCommunityIcons name="help-circle-outline" size={18} color="#777" style={{ marginLeft: 4 }} />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -374,55 +392,83 @@ const ProfileScreen = () => {
     }
   };
 
+  if (showCreate) {
+    return <CreateProfileScreen onSave={handleProfileSave} />;
+  }
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAwareScrollView
-        style={{ flex: 1 }}
-      >
+      <KeyboardAwareScrollView style={{ flex: 1 }}>
         {renderHeader()}
-        <View style={styles.statusSection}>
-          {renderStatusIndicator()}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Photos</Text>
-          <FlatList
-            data={groupPhotosInColumns(data.photos)}
-            renderItem={({ item: column }) => (
-              <View style={styles.photoColumn}>
-                {column.map(photo => (
-                  <View key={photo.id} style={styles.photoContainer}>
-                    <Image source={{ uri: photo.uri }} style={styles.photo} />
-                  </View>
-                ))}
-              </View>
-            )}
-            keyExtractor={(_, idx) => idx.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.photoGrid}
-            style={{ maxHeight: PHOTO_SIZE * 2 + 24 }}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bio</Text>
-          <View style={styles.contentBox}>
-            <Text style={styles.bioText}>{data.bio}</Text>
+        {/* Blank state if no profile and not creating */}
+        {!hasProfile && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 64 }}>
+            <Text style={{ fontSize: 18, color: '#333', marginBottom: 24, textAlign: 'center' }}>
+              You haven't set up your profile yet.
+            </Text>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 12,
+                paddingVertical: 14,
+                paddingHorizontal: 32,
+                borderWidth: 1,
+                borderColor: '#e5e5e5',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+              }}
+              onPress={() => setShowCreate(true)}
+            >
+              <Text style={{ color: '#222', fontWeight: '500', fontSize: 16 }}>Set up your profile</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        )}
+        {/* Show regular profile view if profile exists */}
+        {hasProfile && (
+          <>
+            <View style={styles.statusSection}>{renderStatusIndicator()}</View>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Photos</Text>
+              <FlatList
+                data={groupPhotosInColumns(data.photos)}
+                renderItem={({ item: column }) => (
+                  <View style={styles.photoColumn}>
+                    {column.map(photo => (
+                      <View key={photo.id} style={styles.photoContainer}>
+                        <Image source={{ uri: photo.uri }} style={styles.photo} />
+                      </View>
+                    ))}
+                  </View>
+                )}
+                keyExtractor={(_, idx) => idx.toString()}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.photoGrid}
+                style={{ maxHeight: PHOTO_SIZE * 2 + 24 }}
+              />
+            </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Prompts</Text>
-          {data.prompts.map((prompt) => (
-            <View key={prompt.id} style={styles.promptContainer}>
-              <Text style={styles.promptQuestion}>{prompt.question}</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Bio</Text>
               <View style={styles.contentBox}>
-                <Text style={styles.promptAnswer}>{prompt.answer}</Text>
+                <Text style={styles.bioText}>{data.bio}</Text>
               </View>
             </View>
-          ))}
-        </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Prompts</Text>
+              {data.prompts.map((prompt) => (
+                <View key={prompt.id} style={styles.promptContainer}>
+                  <Text style={styles.promptQuestion}>{prompt.question}</Text>
+                  <View style={styles.contentBox}>
+                    <Text style={styles.promptAnswer}>{prompt.answer}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
       </KeyboardAwareScrollView>
     </SafeAreaView>
   );
@@ -539,23 +585,22 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   testingContainer: {
-    backgroundColor: '#007AFF',
+    // No background for minimal look
   },
   testingText: {
-    color: '#fff',
+    color: '#222',
   },
   completeInfo: {
-    backgroundColor: '#f0fff0',
-    padding: 12,
+    padding: 8,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   completeText: {
-    color: '#34C759',
+    color: '#222',
   },
   buttonGroup: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   statusButton: {
     flex: 1,
@@ -569,15 +614,29 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   viewResultsButton: {
-    backgroundColor: '#5856D6',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
   },
   newTestButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
   },
   statusButtonText: {
-    color: '#fff',
+    color: '#222',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     marginLeft: 8,
     flexShrink: 1,
     flexWrap: 'nowrap',
@@ -632,10 +691,22 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   disabledButton: {
-    backgroundColor: '#d1d1d6',
+    backgroundColor: '#eee',
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 1,
   },
   disabledButtonText: {
-    color: '#888',
+    color: '#777',
+    opacity: 1,
+  },
+  startTestButton: {
+    backgroundColor: '#222',
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
 });
 

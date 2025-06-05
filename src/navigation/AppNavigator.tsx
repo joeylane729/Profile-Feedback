@@ -14,7 +14,6 @@ import SignUpScreen from '../screens/auth/SignUpScreen';
 import FeedbackScreen from '../screens/main/FeedbackScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import DiscoverScreen from '../screens/main/DiscoverScreen';
-import CreateProfileScreen from '../screens/main/CreateProfileScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -55,8 +54,6 @@ const MainTabNavigator = () => {
             iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
-          } else if (route.name === 'CreateProfile') {
-            iconName = focused ? 'add-circle' : 'add-circle-outline';
           }
 
           return <Ionicons name={iconName as any} size={size} color={color} />;
@@ -73,7 +70,6 @@ const MainTabNavigator = () => {
       <Tab.Screen name="Discover" component={DiscoverScreen} />
       <Tab.Screen name="Feedback" component={FeedbackScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen name="CreateProfile" component={CreateProfileScreen} />
     </Tab.Navigator>
   );
 };

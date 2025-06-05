@@ -37,6 +37,10 @@ interface ProfileData {
   prompts: Prompt[];
 }
 
+interface CreateProfileScreenProps {
+  onSave?: () => void;
+}
+
 const INITIAL_DATA: ProfileData = {
   photos: [],
   bio: '',
@@ -47,7 +51,7 @@ const INITIAL_DATA: ProfileData = {
   ],
 };
 
-const CreateProfileScreen = () => {
+const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => {
   const [data, setData] = useState(INITIAL_DATA);
   const [editingBio, setEditingBio] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
@@ -113,6 +117,7 @@ const CreateProfileScreen = () => {
   const handleSave = () => {
     // TODO: Implement profile creation logic
     Alert.alert('Success', 'Profile created successfully!');
+    if (onSave) onSave();
   };
 
   return (
@@ -131,7 +136,7 @@ const CreateProfileScreen = () => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Photos</Text>
             <TouchableOpacity onPress={pickImage} style={styles.addButton}>
-              <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+              <Ionicons name="add-circle-outline" size={24} color="#222" />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -242,9 +247,9 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   saveButtonText: {
-    color: '#007AFF',
+    color: '#222',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   section: {
     padding: 16,

@@ -11,8 +11,7 @@ export type AuthStackParamList = {
 };
 
 export type MainTabParamList = {
+  Discover: undefined;
   Feedback: undefined;
   Profile: undefined;
-  Discover: undefined;
-  CreateProfile: undefined;
 }; 
