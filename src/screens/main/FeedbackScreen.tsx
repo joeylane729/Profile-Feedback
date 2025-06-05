@@ -11,7 +11,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, TextInput, Modal } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../config/theme';
 
@@ -35,6 +35,7 @@ type Photo = {
   totalRatings: number;
   breakdown: PhotoBreakdown;
   feedback: PhotoFeedback[];
+  ratings?: { keep: number; neutral: number; remove: number };
 };
 
 // Dummy data - in a real app, this would come from your backend
@@ -44,56 +45,16 @@ const DUMMY_FEEDBACK = {
     { 
       id: '1', 
       uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60', 
-      rating: 4.6,
-      totalRatings: 42,
-      breakdown: {
-        5: 25,
-        4: 12,
-        3: 3,
-        2: 1,
-        1: 1
-      },
-      feedback: [
-        { comment: "Great composition and framing", count: 18 },
-        { comment: "Perfect lighting and exposure", count: 15 },
-        { comment: "Natural and engaging expression", count: 12 },
-        { comment: "Background complements the subject", count: 10 },
-        { comment: "Professional quality photo", count: 8 },
-        { comment: "Could use better lighting", count: 5 },
-        { comment: "Background is distracting", count: 4 },
-        { comment: "Subject is too centered", count: 3 },
-        { comment: "Image quality could be better", count: 2 },
-        { comment: "Expression feels forced", count: 1 }
-      ]
+      ratings: { keep: 18, neutral: 12, remove: 2 },
     },
     { 
       id: '2', 
       uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60', 
-      rating: 4.3,
-      totalRatings: 42,
-      breakdown: {
-        5: 20,
-        4: 15,
-        3: 5,
-        2: 1,
-        1: 1
-      },
-      feedback: [
-        { comment: "Great composition and framing", count: 16 },
-        { comment: "Perfect lighting and exposure", count: 14 },
-        { comment: "Natural and engaging expression", count: 11 },
-        { comment: "Background complements the subject", count: 9 },
-        { comment: "Professional quality photo", count: 7 },
-        { comment: "Could use better lighting", count: 4 },
-        { comment: "Background is distracting", count: 3 },
-        { comment: "Subject is too centered", count: 2 },
-        { comment: "Image quality could be better", count: 1 },
-        { comment: "Expression feels forced", count: 1 }
-      ]
+      ratings: { keep: 10, neutral: 20, remove: 5 },
     },
-    { id: '3', uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=60', rating: 3.9 },
-    { id: '4', uri: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=60', rating: 3.6 },
-    { id: '5', uri: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&auto=format&fit=crop&q=60', rating: 3.3 },
+    { id: '3', uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=60', ratings: { keep: 5, neutral: 10, remove: 10 } },
+    { id: '4', uri: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=60', ratings: { keep: 2, neutral: 8, remove: 15 } },
+    { id: '5', uri: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&auto=format&fit=crop&q=60', ratings: { keep: 15, neutral: 5, remove: 1 } },
   ] as Photo[],
   bio: {
     rating: 4.4,
@@ -253,29 +214,15 @@ const PhotoFeedbackModal = ({ photo, visible, onClose }: { photo: Photo | null, 
   );
 };
 
-const PhotoItem = ({ photo, rank, onSelect }: { photo: Photo; rank: number; onSelect: (photo: Photo) => void }) => {
-  return (
-    <TouchableOpacity 
-      style={styles.photoItem}
-      onPress={() => onSelect(photo)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.rankBadge}>
-        <Text style={styles.rankText}>#{rank}</Text>
-      </View>
-      <Image source={{ uri: photo.uri }} style={styles.photo} />
-      <View style={styles.touchIndicator}>
-        <Ionicons name="chevron-forward" size={16} color="#fff" />
-      </View>
-    </TouchableOpacity>
-  );
-};
-
 const FeedbackScreen = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [activeTab, setActiveTab] = useState<'photos' | 'prompts'>('photos');
 
-  const sortedPhotos = DUMMY_FEEDBACK.photos.sort((a, b) => b.rating - a.rating);
+  // Calculate score for each photo and sort
+  const sortedPhotos = DUMMY_FEEDBACK.photos
+    .map(photo => ({ ...photo, score: (photo.ratings?.keep || 0) - (photo.ratings?.remove || 0) }))
+    .sort((a, b) => b.score - a.score);
   const totalPages = Math.ceil(sortedPhotos.length / PHOTOS_PER_PAGE);
   const startIndex = (currentPage - 1) * PHOTOS_PER_PAGE;
   const endIndex = startIndex + PHOTOS_PER_PAGE;
@@ -293,132 +240,170 @@ const FeedbackScreen = () => {
     }
   };
 
+  // Helper constants for dynamic width
+  const ICON_BOX_WIDTH = 28;
+  const COUNT_BOX_WIDTH = 36;
+  const PAIR_MARGIN = 14;
+  const RATINGS_BLOCK_WIDTH = 3 * (ICON_BOX_WIDTH + COUNT_BOX_WIDTH) + 2 * PAIR_MARGIN; // 3 pairs, 2 gaps
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Feedback</Text>
         </View>
+        <View style={styles.tabBar}>
+          <TouchableOpacity onPress={() => setActiveTab('photos')} style={[styles.tabItem, activeTab === 'photos' && styles.activeTabItem]}>
+            <Text style={[styles.tabText, activeTab === 'photos' && styles.activeTabText]}>Photos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setActiveTab('prompts')} style={[styles.tabItem, activeTab === 'prompts' && styles.activeTabItem]}>
+            <Text style={[styles.tabText, activeTab === 'prompts' && styles.activeTabText]}>Prompts</Text>
+          </TouchableOpacity>
+        </View>
         <ScrollView style={styles.content}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Photo Rankings</Text>
-            <Text style={styles.subtitle}>Based on {DUMMY_FEEDBACK.totalRatings} ratings</Text>
-            
-            <View style={styles.photosGrid}>
-              {currentPhotos.map((photo, index) => (
-                <PhotoItem 
-                  key={photo.id} 
-                  photo={photo} 
-                  rank={startIndex + index + 1} 
-                  onSelect={setSelectedPhoto}
-                />
-              ))}
-            </View>
-
-            <View style={styles.paginationContainer}>
-              <TouchableOpacity 
-                style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
-                onPress={handlePrevPage}
-                disabled={currentPage === 1}
-              >
-                <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
-              </TouchableOpacity>
-              
-              <Text style={styles.pageText}>
-                Page {currentPage} of {totalPages}
-              </Text>
-              
-              <TouchableOpacity 
-                style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
-                onPress={handleNextPage}
-                disabled={currentPage === totalPages}
-              >
-                <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Bio Rating</Text>
-            <View style={styles.ratingSummary}>
-              <Text style={styles.ratingNumber}>{DUMMY_FEEDBACK.bio.rating.toFixed(1)}</Text>
-              <View style={styles.starsContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Ionicons
-                    key={star}
-                    name={star <= Math.round(DUMMY_FEEDBACK.bio.rating) ? 'star' : 'star-outline'}
-                    size={24}
-                    color="#FFD700"
-                  />
-                ))}
-              </View>
-              <Text style={styles.totalRatings}>{DUMMY_FEEDBACK.bio.totalRatings} ratings</Text>
-            </View>
-
-            <View style={styles.ratingBreakdown}>
-              {[5, 4, 3, 2, 1].map((rating) => (
-                <RatingBar
-                  key={rating}
-                  rating={rating}
-                  count={DUMMY_FEEDBACK.bio.breakdown[rating as keyof typeof DUMMY_FEEDBACK.bio.breakdown]}
-                  total={DUMMY_FEEDBACK.bio.totalRatings}
-                />
-              ))}
-            </View>
-
-            <View style={styles.feedbackContainer}>
-              <Text style={styles.feedbackTitle}>Common Feedback</Text>
-              {DUMMY_FEEDBACK.bio.feedback.slice(0, 3).map((item, index) => (
-                <FeedbackComment key={index} comment={item.comment} count={item.count} />
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Prompt Ratings</Text>
-            {DUMMY_FEEDBACK.prompts.map((prompt) => (
-              <View key={prompt.id} style={styles.promptItem}>
-                <Text style={styles.promptQuestion}>{prompt.question}</Text>
-                <View style={styles.ratingSummary}>
-                  <Text style={styles.ratingNumber}>{prompt.rating.toFixed(1)}</Text>
-                  <View style={styles.starsContainer}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Ionicons
-                        key={star}
-                        name={star <= Math.round(prompt.rating) ? 'star' : 'star-outline'}
-                        size={20}
-                        color="#FFD700"
+            {activeTab === 'photos' && (
+              <>
+                <View style={styles.photoList}>
+                  {currentPhotos.map((photo, index) => {
+                    const keeps = photo.ratings?.keep || 0;
+                    const neutrals = photo.ratings?.neutral || 0;
+                    const removes = photo.ratings?.remove || 0;
+                    return (
+                      <View key={photo.id} style={styles.photoRow}>
+                        <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
+                        <View style={styles.photoRatingsColumn}>
+                          <View style={[styles.ratingsBlock, { width: RATINGS_BLOCK_WIDTH }]}> 
+                            {/* Total Score above */}
+                            <View style={styles.scoreRow}>
+                              <Ionicons name="star-outline" size={22} color="#222" style={{ marginRight: 6 }} />
+                              <Text style={styles.scoreLabel}>Total:</Text>
+                              <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 6 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                            </View>
+                            <View style={styles.photoRatingsGroup}>
+                              <View style={styles.photoRatingItem}>
+                                <View style={styles.iconBox}><Ionicons name="checkmark-outline" size={24} color="#222" /></View>
+                                <View style={styles.countBox}><Text style={styles.photoRatingCount}>{keeps}</Text></View>
+                              </View>
+                              <View style={[styles.photoRatingItem, { marginLeft: PAIR_MARGIN }]}> 
+                                <View style={styles.iconBox}><Ionicons name="remove-circle-outline" size={24} color="#222" /></View>
+                                <View style={styles.countBox}><Text style={styles.photoRatingCount}>{neutrals}</Text></View>
+                              </View>
+                              <View style={[styles.photoRatingItem, { marginLeft: PAIR_MARGIN }]}> 
+                                <View style={styles.iconBox}><MaterialCommunityIcons name="swap-horizontal" size={24} color="#222" /></View>
+                                <View style={styles.countBox}><Text style={styles.photoRatingCount}>{removes}</Text></View>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+                <View style={styles.paginationContainer}>
+                  <TouchableOpacity 
+                    style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
+                    onPress={handlePrevPage}
+                    disabled={currentPage === 1}
+                  >
+                    <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
+                  </TouchableOpacity>
+                  <Text style={styles.pageText}>
+                    Page {currentPage} of {totalPages}
+                  </Text>
+                  <TouchableOpacity 
+                    style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
+                    onPress={handleNextPage}
+                    disabled={currentPage === totalPages}
+                  >
+                    <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+            {activeTab === 'prompts' && (
+              <>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Bio Rating</Text>
+                  <View style={styles.ratingSummary}>
+                    <Text style={styles.ratingNumber}>{DUMMY_FEEDBACK.bio.rating.toFixed(1)}</Text>
+                    <View style={styles.starsContainer}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Ionicons
+                          key={star}
+                          name={star <= Math.round(DUMMY_FEEDBACK.bio.rating) ? 'star' : 'star-outline'}
+                          size={24}
+                          color="#FFD700"
+                        />
+                      ))}
+                    </View>
+                    <Text style={styles.totalRatings}>{DUMMY_FEEDBACK.bio.totalRatings} ratings</Text>
+                  </View>
+                  <View style={styles.ratingBreakdown}>
+                    {[5, 4, 3, 2, 1].map((rating) => (
+                      <RatingBar
+                        key={rating}
+                        rating={rating}
+                        count={DUMMY_FEEDBACK.bio.breakdown[rating as keyof typeof DUMMY_FEEDBACK.bio.breakdown]}
+                        total={DUMMY_FEEDBACK.bio.totalRatings}
                       />
                     ))}
                   </View>
-                  <Text style={styles.totalRatings}>{prompt.totalRatings} ratings</Text>
+                  <View style={styles.feedbackContainer}>
+                    <Text style={styles.feedbackTitle}>Common Feedback</Text>
+                    {DUMMY_FEEDBACK.bio.feedback.slice(0, 3).map((item, index) => (
+                      <FeedbackComment key={index} comment={item.comment} count={item.count} />
+                    ))}
+                  </View>
                 </View>
-                <View style={styles.ratingBreakdown}>
-                  {[5, 4, 3, 2, 1].map((rating) => (
-                    <RatingBar
-                      key={rating}
-                      rating={rating}
-                      count={prompt.breakdown[rating as keyof typeof prompt.breakdown]}
-                      total={prompt.totalRatings}
-                    />
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Prompt Ratings</Text>
+                  {DUMMY_FEEDBACK.prompts.map((prompt) => (
+                    <View key={prompt.id} style={styles.promptItem}>
+                      <Text style={styles.promptQuestion}>{prompt.question}</Text>
+                      <View style={styles.ratingSummary}>
+                        <Text style={styles.ratingNumber}>{prompt.rating.toFixed(1)}</Text>
+                        <View style={styles.starsContainer}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Ionicons
+                              key={star}
+                              name={star <= Math.round(prompt.rating) ? 'star' : 'star-outline'}
+                              size={20}
+                              color="#FFD700"
+                            />
+                          ))}
+                        </View>
+                        <Text style={styles.totalRatings}>{prompt.totalRatings} ratings</Text>
+                      </View>
+                      <View style={styles.ratingBreakdown}>
+                        {[5, 4, 3, 2, 1].map((rating) => (
+                          <RatingBar
+                            key={rating}
+                            rating={rating}
+                            count={prompt.breakdown[rating as keyof typeof prompt.breakdown]}
+                            total={prompt.totalRatings}
+                          />
+                        ))}
+                      </View>
+                      <View style={styles.feedbackContainer}>
+                        <Text style={styles.feedbackTitle}>Common Feedback</Text>
+                        {prompt.feedback.slice(0, 3).map((item, index) => (
+                          <FeedbackComment key={index} comment={item.comment} count={item.count} />
+                        ))}
+                      </View>
+                    </View>
                   ))}
                 </View>
-                <View style={styles.feedbackContainer}>
-                  <Text style={styles.feedbackTitle}>Common Feedback</Text>
-                  {prompt.feedback.slice(0, 3).map((item, index) => (
-                    <FeedbackComment key={index} comment={item.comment} count={item.count} />
-                  ))}
-                </View>
-              </View>
-            ))}
+              </>
+            )}
           </View>
-
-          <PhotoFeedbackModal 
-            photo={selectedPhoto} 
-            visible={!!selectedPhoto} 
-            onClose={() => setSelectedPhoto(null)} 
-          />
         </ScrollView>
+
+        <PhotoFeedbackModal 
+          photo={selectedPhoto} 
+          visible={!!selectedPhoto} 
+          onClose={() => setSelectedPhoto(null)} 
+        />
       </View>
     </SafeAreaView>
   );
@@ -463,37 +448,67 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
   },
-  photosGrid: {
+  photoList: {
+    marginTop: 0,
+  },
+  photoRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
+    alignItems: 'stretch',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    gap: 0,
   },
-  photoItem: {
-    width: PHOTO_SIZE,
-    height: PHOTO_SIZE,
-    marginBottom: 10,
-    position: 'relative',
-  },
-  photo: {
-    width: '100%',
-    height: '100%',
+  photoListImage: {
+    width: 128,
+    height: 128,
     borderRadius: 8,
+    marginRight: 12,
   },
-  rankBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    zIndex: 1,
+  photoRatingsColumn: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    height: 128,
   },
-  rankText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+  ratingsBlock: {
+    alignItems: 'flex-start',
+  },
+  scoreLabel: {
+    fontSize: 22,
+    fontWeight: '400',
+  },
+  photoRatingsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    width: 180,
+    marginLeft: 0,
+  },
+  photoRatingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 56,
+    justifyContent: 'flex-start',
+    marginRight: 0,
+  },
+  iconBox: {
+    width: 28,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  countBox: {
+    width: 36,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginLeft: 1,
+  },
+  photoRatingCount: {
+    fontSize: 20,
+    fontWeight: '400',
+    marginLeft: 4,
+    color: '#222',
   },
   ratingSummary: {
     flexDirection: 'row',
@@ -649,6 +664,40 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginTop: 8,
+  },
+  scoreText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    marginTop: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTabItem: {
+    borderBottomColor: '#222',
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#888',
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: '#222',
+    fontWeight: '700',
   },
 });
 

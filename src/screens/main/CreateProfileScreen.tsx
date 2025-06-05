@@ -122,16 +122,15 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Create Profile</Text>
+        <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+          <Text style={styles.saveButtonText}>Save</Text>
+        </TouchableOpacity>
+      </View>
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Create Profile</Text>
-          <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-            <Text style={styles.saveButtonText}>Save</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Photos</Text>

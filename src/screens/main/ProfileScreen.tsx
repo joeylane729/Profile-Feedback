@@ -397,8 +397,8 @@ const ProfileScreen = () => {
   }
   return (
     <SafeAreaView style={styles.safeArea}>
+      {renderHeader()}
       <KeyboardAwareScrollView style={{ flex: 1 }}>
-        {renderHeader()}
         {/* Blank state if no profile and not creating */}
         {!hasProfile && (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 64 }}>
