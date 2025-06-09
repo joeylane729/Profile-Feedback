@@ -386,8 +386,9 @@ const FeedbackScreen = () => {
   const renderContent = () => {
     if (activeTab === 'photos') {
       return (
-        <ScrollView style={styles.content}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
+            <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
             <View style={styles.photoList}>
               {currentPhotos.map((photo, index) => {
                 const keeps = photo.ratings?.keep || 0;
@@ -438,8 +439,9 @@ const FeedbackScreen = () => {
       );
     }
     return (
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
+          <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
           <View style={styles.photoList}>
             {DUMMY_FEEDBACK.prompts.map((prompt) => {
               const keeps = prompt.breakdown[5] + prompt.breakdown[4];
@@ -465,11 +467,11 @@ const FeedbackScreen = () => {
                       <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
                     </TouchableOpacity>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, height: 28, marginTop: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 28, marginTop: 12 }}>
                     <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
-                    <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0, marginRight: 12 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
-                    <View style={{ width: 220, height: 28, justifyContent: 'center' }}>
-                      <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} style={{ position: 'absolute', top: 0 }} />
+                    <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0, marginRight: 0 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                    <View style={{ width: 220, height: 28, justifyContent: 'center', paddingRight: 0 }}>
+                      <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} style={{ position: 'absolute', top: 0, right: 0 }} />
                     </View>
                   </View>
                 </View>
@@ -495,7 +497,6 @@ const FeedbackScreen = () => {
             <Text style={[styles.tabText, activeTab === 'prompts' && styles.activeTabText]}>Prompts</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
         <View {...panResponder.panHandlers} style={{ flex: 1, overflow: 'hidden' }}>
           <Animated.View style={[
             styles.content,
@@ -506,97 +507,10 @@ const FeedbackScreen = () => {
             }
           ]}>
             <View style={{ width }}>
-              <ScrollView style={styles.content}>
-                <View style={styles.section}>
-                  <View style={styles.photoList}>
-                    {currentPhotos.map((photo, index) => {
-                      const keeps = photo.ratings?.keep || 0;
-                      const neutrals = photo.ratings?.neutral || 0;
-                      const removes = photo.ratings?.remove || 0;
-                      return (
-                        <View key={photo.id} style={styles.photoCard}>
-                          <View style={styles.photoRow}>
-                            <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
-                            <View style={styles.photoBarChartCol}>
-                              <View style={styles.menuRow}>
-                                <TouchableOpacity>
-                                  <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
-                                </TouchableOpacity>
-                              </View>
-                              <View style={styles.scoreRow}>
-                                <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
-                                <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
-                              </View>
-                              <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} />
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  <View style={styles.paginationContainer}>
-                    <TouchableOpacity 
-                      style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
-                      onPress={handlePrevPage}
-                      disabled={currentPage === 1}
-                    >
-                      <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
-                    </TouchableOpacity>
-                    <Text style={styles.pageText}>
-                      Page {currentPage} of {totalPages}
-                    </Text>
-                    <TouchableOpacity 
-                      style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
-                      onPress={handleNextPage}
-                      disabled={currentPage === totalPages}
-                    >
-                      <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </ScrollView>
+              {renderContent()}
             </View>
             <View style={{ width }}>
-              <ScrollView style={styles.content}>
-                <View style={styles.section}>
-                  <View style={styles.photoList}>
-                    {DUMMY_FEEDBACK.prompts.map((prompt) => {
-                      const keeps = prompt.breakdown[5] + prompt.breakdown[4];
-                      const neutrals = prompt.breakdown[3];
-                      const removes = prompt.breakdown[2] + prompt.breakdown[1];
-                      return (
-                        <View key={prompt.id} style={styles.photoCard}>
-                          <View style={styles.promptHeader}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={{ 
-                                fontSize: 15, 
-                                fontWeight: '600', 
-                                color: '#333', 
-                                marginBottom: 6
-                              }}>Q: {prompt.question}</Text>
-                              <Text style={{ 
-                                fontSize: 14, 
-                                color: '#444', 
-                                lineHeight: 20
-                              }}>A: {prompt.response}</Text>
-                            </View>
-                            <TouchableOpacity>
-                              <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
-                            </TouchableOpacity>
-                          </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, height: 28, marginTop: 12 }}>
-                            <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
-                            <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0, marginRight: 12 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
-                            <View style={{ width: 220, height: 28, justifyContent: 'center' }}>
-                              <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} style={{ position: 'absolute', top: 0 }} />
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
-              </ScrollView>
+              {renderContent()}
             </View>
           </Animated.View>
         </View>
@@ -635,7 +549,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    padding: 20,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -689,11 +603,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     marginBottom: 4,
+    paddingHorizontal: 0,
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 4,
+    width: '100%',
+    paddingHorizontal: 0,
   },
   scoreLabel: {
     fontSize: 22,
@@ -887,8 +805,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 0,
+    marginTop: 0,
+    marginBottom: 16,
     fontWeight: '500',
   },
   promptHeader: {
