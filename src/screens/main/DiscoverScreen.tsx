@@ -91,6 +91,8 @@ const DiscoverScreen = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [photoFeedback, setPhotoFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral'}>({});
   const [activeFeedback, setActiveFeedback] = useState<'keep' | 'remove' | 'neutral' | null>(null);
+  const [promptFeedback, setPromptFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral'}>({});
+  const [activePromptFeedback, setActivePromptFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral' | null}>({});
   const flatListRef = useRef<FlatList>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const expandAnimation = useRef(new Animated.Value(0)).current;
@@ -209,6 +211,8 @@ const DiscoverScreen = () => {
       setHasSeenLastPhoto(false);
       setPhotoFeedback({}); // Reset photo feedback
       setActiveFeedback(null); // Reset active feedback
+      setPromptFeedback({}); // Reset prompt feedback
+      setActivePromptFeedback({}); // Reset active prompt feedback
       expandAnimation.setValue(0);
       pan.setValue(0);
       progressAnimation.setValue(0);
@@ -314,6 +318,35 @@ const DiscoverScreen = () => {
     }).start();
   };
 
+  const handlePromptFeedback = (promptId: string, feedback: 'keep' | 'remove' | 'neutral') => {
+    setActivePromptFeedback(prev => ({ ...prev, [promptId]: feedback }));
+    setPromptFeedback(prev => ({ ...prev, [promptId]: feedback }));
+  };
+
+  const getPromptButtonStyle = (promptId: string, type: 'remove' | 'neutral' | 'keep') => {
+    const isSelected = activePromptFeedback[promptId] === type;
+    
+    switch (type) {
+      case 'remove':
+        return {
+          backgroundColor: isSelected ? 'rgba(239, 68, 68, 0.08)' : '#fff',
+          borderColor: isSelected ? '#ef4444' : '#FCA5A5',
+        };
+      case 'neutral':
+        return {
+          backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : '#fff',
+          borderColor: isSelected ? '#2563eb' : '#BFDBFE',
+        };
+      case 'keep':
+        return {
+          backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.08)' : '#fff',
+          borderColor: isSelected ? '#10b981' : '#6EE7B7',
+        };
+      default:
+        return {};
+    }
+  };
+
   useEffect(() => {
     Animated.timing(backButtonOpacity, {
       toValue: activePhoto > 0 ? 1 : 0,
@@ -327,6 +360,11 @@ const DiscoverScreen = () => {
     animateProgress(progress);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileIndex]);
+
+  // Add this helper function to check if all prompts have feedback
+  const areAllPromptsRated = () => {
+    return profile.prompts.every(prompt => promptFeedback[prompt.id]);
+  };
 
   if (!profile) {
     return (
@@ -562,6 +600,43 @@ const DiscoverScreen = () => {
                   <View key={prompt.id} style={styles.promptBox}>
                     <Text style={styles.promptQuestion}>{prompt.question}</Text>
                     <Text style={styles.promptAnswer}>{prompt.answer}</Text>
+                    <View style={styles.promptFeedbackButtons}>
+                      <TouchableOpacity 
+                        style={[styles.promptFeedbackButton, styles.neutralOutlineButton, styles.removeButton, getPromptButtonStyle(prompt.id, 'remove')]}
+                        onPress={() => handlePromptFeedback(prompt.id, 'remove')}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons 
+                          name="swap-horizontal" 
+                          size={16} 
+                          color={activePromptFeedback[prompt.id] === 'remove' ? '#ef4444' : '#222'} 
+                        />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={[styles.promptFeedbackButton, styles.neutralOutlineButton, styles.neutralButton, getPromptButtonStyle(prompt.id, 'neutral')]}
+                        onPress={() => handlePromptFeedback(prompt.id, 'neutral')}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons 
+                          name="circle-outline" 
+                          size={16} 
+                          color={activePromptFeedback[prompt.id] === 'neutral' ? '#2563eb' : '#222'} 
+                        />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={[styles.promptFeedbackButton, styles.neutralOutlineButton, styles.keepButton, getPromptButtonStyle(prompt.id, 'keep')]}
+                        onPress={() => handlePromptFeedback(prompt.id, 'keep')}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons 
+                          name="check" 
+                          size={16} 
+                          color={activePromptFeedback[prompt.id] === 'keep' ? '#10b981' : '#222'} 
+                        />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -574,13 +649,25 @@ const DiscoverScreen = () => {
                   {LIKE_OPTIONS.map(option => (
                     <TouchableOpacity
                       key={option.value}
-                      style={styles.likelihoodButton}
+                      style={[
+                        styles.likelihoodButton,
+                        !areAllPromptsRated() && styles.likelihoodButtonDisabled
+                      ]}
                       onPress={handleOptionSelect}
+                      disabled={!areAllPromptsRated()}
                     >
-                      <Text style={styles.likelihoodButtonText}>{option.label}</Text>
+                      <Text style={[
+                        styles.likelihoodButtonText,
+                        !areAllPromptsRated() && styles.likelihoodButtonTextDisabled
+                      ]}>{option.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
+                {!areAllPromptsRated() && (
+                  <Text style={styles.likelihoodHelperText}>
+                    Please rate all prompts above to continue
+                  </Text>
+                )}
               </View>
             </ScrollView>
           </Animated.View>
@@ -989,6 +1076,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%',
     height: '100%',
+  },
+  promptFeedbackButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  promptFeedbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  likelihoodButtonDisabled: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.7,
+  },
+  likelihoodButtonTextDisabled: {
+    color: '#999',
+  },
+  likelihoodHelperText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
   },
 });
 
