@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, TextInput, Modal, Animated } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, TextInput, Modal, Animated, PanResponder } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../config/theme';
@@ -78,6 +78,7 @@ const DUMMY_FEEDBACK = {
     {
       id: '1',
       question: "I'm looking for",
+      response: "Someone who loves hiking and outdoor adventures. I want to find a partner who shares my passion for exploring nature and trying new experiences.",
       rating: 4.6,
       totalRatings: 42,
       breakdown: {
@@ -98,6 +99,7 @@ const DUMMY_FEEDBACK = {
     {
       id: '2',
       question: "My ideal first date",
+      response: "A casual coffee followed by a walk in the park. I love getting to know someone in a relaxed setting where we can really talk and connect.",
       rating: 4.2,
       totalRatings: 42,
       breakdown: {
@@ -118,6 +120,7 @@ const DUMMY_FEEDBACK = {
     {
       id: '3',
       question: "My perfect weekend",
+      response: "Starting with a morning hike, followed by brunch at my favorite local spot. Then maybe some time at the beach or exploring a new neighborhood in the city.",
       rating: 4.0,
       totalRatings: 42,
       breakdown: {
@@ -219,8 +222,8 @@ const KEEP_COLOR = '#22c55e';
 const NEUTRAL_COLOR = '#e5e7eb';
 const REMOVE_COLOR = '#ef233c';
 
-// Bar chart for photo feedback
-const PhotoBarChart = ({ keep, neutral, remove }: { keep: number; neutral: number; remove: number }) => {
+// Refactor PhotoBarChart to split bar and numbers
+const PhotoBarChart = ({ keep, neutral, remove, style }: { keep: number; neutral: number; remove: number; style?: any }) => {
   const total = keep + neutral + remove;
   const keepPct = total ? keep / total : 0;
   const removePct = total ? remove / total : 0;
@@ -238,19 +241,18 @@ const PhotoBarChart = ({ keep, neutral, remove }: { keep: number; neutral: numbe
     keepAnim.setValue(0);
     removeAnim.setValue(0);
     neutralAnim.setValue(0);
-    Animated.sequence([
+    
+    Animated.parallel([
       Animated.timing(keepAnim, {
         toValue: keepPct,
-        duration: 1200,
+        duration: 800,
         useNativeDriver: false,
       }),
-      Animated.delay(120),
       Animated.timing(removeAnim, {
         toValue: removePct,
-        duration: 1200,
+        duration: 1000,
         useNativeDriver: false,
       }),
-      Animated.delay(120),
       Animated.timing(neutralAnim, {
         toValue: neutralPct,
         duration: 1200,
@@ -265,7 +267,7 @@ const PhotoBarChart = ({ keep, neutral, remove }: { keep: number; neutral: numbe
   );
 
   return (
-    <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+    <View style={[{ flexDirection: 'column', alignItems: 'center' }, style]}>
       <View style={{ width: BAR_WIDTH, height: BAR_HEIGHT, flexDirection: 'row', borderRadius: 8, overflow: 'hidden', backgroundColor: 'transparent' }}>
         <Animated.View style={{ flex: keepAnim, backgroundColor: KEEP_COLOR, minWidth: keep ? 2 : 0 }} />
         <Animated.View style={{ flex: removeAnim, backgroundColor: REMOVE_COLOR, minWidth: remove ? 2 : 0 }} />
@@ -291,6 +293,68 @@ const FeedbackScreen = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [activeTab, setActiveTab] = useState<'photos' | 'prompts'>('photos');
+  const translateX = useRef(new Animated.Value(0)).current;
+  const { width } = Dimensions.get('window');
+  const gestureStartTab = useRef<'photos' | 'prompts'>(activeTab);
+  const isSwiping = useRef(false);
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      return Math.abs(gestureState.dx) > 5 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+    },
+    onPanResponderGrant: () => {
+      gestureStartTab.current = activeTab;
+      isSwiping.current = true;
+    },
+    onPanResponderMove: (_, gestureState) => {
+      const baseX = gestureStartTab.current === 'photos' ? 0 : -width;
+      const newX = baseX + (gestureState.dx * 0.5);
+      translateX.setValue(newX);
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      const SWIPE_THRESHOLD = width * 0.2;
+      const baseX = gestureStartTab.current === 'photos' ? 0 : -width;
+      const relativeX = gestureState.dx;
+      isSwiping.current = false;
+      
+      if (relativeX > SWIPE_THRESHOLD && gestureStartTab.current !== 'photos') {
+        setActiveTab('photos');
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+        }).start();
+      } else if (relativeX < -SWIPE_THRESHOLD && gestureStartTab.current !== 'prompts') {
+        setActiveTab('prompts');
+        Animated.spring(translateX, {
+          toValue: -width,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+        }).start();
+      } else {
+        Animated.spring(translateX, {
+          toValue: baseX,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+        }).start();
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (isSwiping.current) return;
+    const toValue = activeTab === 'photos' ? 0 : -width;
+    Animated.spring(translateX, {
+      toValue,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+  }, [activeTab, width]);
 
   // Calculate score for each photo and sort
   const sortedPhotos = DUMMY_FEEDBACK.photos
@@ -319,6 +383,104 @@ const FeedbackScreen = () => {
   const PAIR_MARGIN = 14;
   const RATINGS_BLOCK_WIDTH = 3 * (ICON_BOX_WIDTH + COUNT_BOX_WIDTH) + 2 * PAIR_MARGIN; // 3 pairs, 2 gaps
 
+  const renderContent = () => {
+    if (activeTab === 'photos') {
+      return (
+        <ScrollView style={styles.content}>
+          <View style={styles.section}>
+            <View style={styles.photoList}>
+              {currentPhotos.map((photo, index) => {
+                const keeps = photo.ratings?.keep || 0;
+                const neutrals = photo.ratings?.neutral || 0;
+                const removes = photo.ratings?.remove || 0;
+                return (
+                  <View key={photo.id} style={styles.photoCard}>
+                    <View style={styles.photoRow}>
+                      <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
+                      <View style={styles.photoBarChartCol}>
+                        <View style={styles.menuRow}>
+                          <TouchableOpacity>
+                            <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.scoreRow}>
+                          <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
+                          <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                        </View>
+                        <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} />
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+            <View style={styles.paginationContainer}>
+              <TouchableOpacity 
+                style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
+                onPress={handlePrevPage}
+                disabled={currentPage === 1}
+              >
+                <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
+              </TouchableOpacity>
+              <Text style={styles.pageText}>
+                Page {currentPage} of {totalPages}
+              </Text>
+              <TouchableOpacity 
+                style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
+                onPress={handleNextPage}
+                disabled={currentPage === totalPages}
+              >
+                <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      );
+    }
+    return (
+      <ScrollView style={styles.content}>
+        <View style={styles.section}>
+          <View style={styles.photoList}>
+            {DUMMY_FEEDBACK.prompts.map((prompt) => {
+              const keeps = prompt.breakdown[5] + prompt.breakdown[4];
+              const neutrals = prompt.breakdown[3];
+              const removes = prompt.breakdown[2] + prompt.breakdown[1];
+              return (
+                <View key={prompt.id} style={styles.photoCard}>
+                  <View style={styles.promptHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ 
+                        fontSize: 15, 
+                        fontWeight: '600', 
+                        color: '#333', 
+                        marginBottom: 6
+                      }}>Q: {prompt.question}</Text>
+                      <Text style={{ 
+                        fontSize: 14, 
+                        color: '#444', 
+                        lineHeight: 20
+                      }}>A: {prompt.response}</Text>
+                    </View>
+                    <TouchableOpacity>
+                      <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, height: 28, marginTop: 12 }}>
+                    <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
+                    <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0, marginRight: 12 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                    <View style={{ width: 220, height: 28, justifyContent: 'center' }}>
+                      <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} style={{ position: 'absolute', top: 0 }} />
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </ScrollView>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
@@ -334,130 +496,110 @@ const FeedbackScreen = () => {
           </TouchableOpacity>
         </View>
         <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
-        <ScrollView style={styles.content}>
-          <View style={styles.section}>
-            {activeTab === 'photos' && (
-              <>
-                <View style={styles.photoList}>
-                  {currentPhotos.map((photo, index) => {
-                    const keeps = photo.ratings?.keep || 0;
-                    const neutrals = photo.ratings?.neutral || 0;
-                    const removes = photo.ratings?.remove || 0;
-                    return (
-                      <View key={photo.id} style={styles.photoCard}>
-                        <View style={styles.photoRow}>
-                          <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
-                          <View style={styles.photoBarChartCol}>
-                            <View style={styles.scoreRow}>
-                              <Text style={styles.scoreLabel}>Total:</Text>
-                              <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 6 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+        <View {...panResponder.panHandlers} style={{ flex: 1, overflow: 'hidden' }}>
+          <Animated.View style={[
+            styles.content,
+            {
+              transform: [{ translateX }],
+              width: width * 2,
+              flexDirection: 'row',
+            }
+          ]}>
+            <View style={{ width }}>
+              <ScrollView style={styles.content}>
+                <View style={styles.section}>
+                  <View style={styles.photoList}>
+                    {currentPhotos.map((photo, index) => {
+                      const keeps = photo.ratings?.keep || 0;
+                      const neutrals = photo.ratings?.neutral || 0;
+                      const removes = photo.ratings?.remove || 0;
+                      return (
+                        <View key={photo.id} style={styles.photoCard}>
+                          <View style={styles.photoRow}>
+                            <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
+                            <View style={styles.photoBarChartCol}>
+                              <View style={styles.menuRow}>
+                                <TouchableOpacity>
+                                  <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
+                                </TouchableOpacity>
+                              </View>
+                              <View style={styles.scoreRow}>
+                                <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
+                                <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                              </View>
+                              <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} />
                             </View>
-                            <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} />
                           </View>
                         </View>
-                      </View>
-                    );
-                  })}
+                      );
+                    })}
+                  </View>
+                  <View style={styles.paginationContainer}>
+                    <TouchableOpacity 
+                      style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
+                      onPress={handlePrevPage}
+                      disabled={currentPage === 1}
+                    >
+                      <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
+                    </TouchableOpacity>
+                    <Text style={styles.pageText}>
+                      Page {currentPage} of {totalPages}
+                    </Text>
+                    <TouchableOpacity 
+                      style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
+                      onPress={handleNextPage}
+                      disabled={currentPage === totalPages}
+                    >
+                      <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={styles.paginationContainer}>
-                  <TouchableOpacity 
-                    style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
-                    onPress={handlePrevPage}
-                    disabled={currentPage === 1}
-                  >
-                    <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
-                  </TouchableOpacity>
-                  <Text style={styles.pageText}>
-                    Page {currentPage} of {totalPages}
-                  </Text>
-                  <TouchableOpacity 
-                    style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
-                    onPress={handleNextPage}
-                    disabled={currentPage === totalPages}
-                  >
-                    <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-            {activeTab === 'prompts' && (
-              <>
+              </ScrollView>
+            </View>
+            <View style={{ width }}>
+              <ScrollView style={styles.content}>
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Bio Rating</Text>
-                  <View style={styles.ratingSummary}>
-                    <Text style={styles.ratingNumber}>{DUMMY_FEEDBACK.bio.rating.toFixed(1)}</Text>
-                    <View style={styles.starsContainer}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Ionicons
-                          key={star}
-                          name={star <= Math.round(DUMMY_FEEDBACK.bio.rating) ? 'star' : 'star-outline'}
-                          size={24}
-                          color="#FFD700"
-                        />
-                      ))}
-                    </View>
-                    <Text style={styles.totalRatings}>{DUMMY_FEEDBACK.bio.totalRatings} ratings</Text>
-                  </View>
-                  <View style={styles.ratingBreakdown}>
-                    {[5, 4, 3, 2, 1].map((rating) => (
-                      <RatingBar
-                        key={rating}
-                        rating={rating}
-                        count={DUMMY_FEEDBACK.bio.breakdown[rating as keyof typeof DUMMY_FEEDBACK.bio.breakdown]}
-                        total={DUMMY_FEEDBACK.bio.totalRatings}
-                      />
-                    ))}
-                  </View>
-                  <View style={styles.feedbackContainer}>
-                    <Text style={styles.feedbackTitle}>Common Feedback</Text>
-                    {DUMMY_FEEDBACK.bio.feedback.slice(0, 3).map((item, index) => (
-                      <FeedbackComment key={index} comment={item.comment} count={item.count} />
-                    ))}
-                  </View>
-                </View>
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Prompt Ratings</Text>
-                  {DUMMY_FEEDBACK.prompts.map((prompt) => (
-                    <View key={prompt.id} style={styles.promptItem}>
-                      <Text style={styles.promptQuestion}>{prompt.question}</Text>
-                      <View style={styles.ratingSummary}>
-                        <Text style={styles.ratingNumber}>{prompt.rating.toFixed(1)}</Text>
-                        <View style={styles.starsContainer}>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Ionicons
-                              key={star}
-                              name={star <= Math.round(prompt.rating) ? 'star' : 'star-outline'}
-                              size={20}
-                              color="#FFD700"
-                            />
-                          ))}
+                  <View style={styles.photoList}>
+                    {DUMMY_FEEDBACK.prompts.map((prompt) => {
+                      const keeps = prompt.breakdown[5] + prompt.breakdown[4];
+                      const neutrals = prompt.breakdown[3];
+                      const removes = prompt.breakdown[2] + prompt.breakdown[1];
+                      return (
+                        <View key={prompt.id} style={styles.photoCard}>
+                          <View style={styles.promptHeader}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ 
+                                fontSize: 15, 
+                                fontWeight: '600', 
+                                color: '#333', 
+                                marginBottom: 6
+                              }}>Q: {prompt.question}</Text>
+                              <Text style={{ 
+                                fontSize: 14, 
+                                color: '#444', 
+                                lineHeight: 20
+                              }}>A: {prompt.response}</Text>
+                            </View>
+                            <TouchableOpacity>
+                              <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
+                            </TouchableOpacity>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, height: 28, marginTop: 12 }}>
+                            <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
+                            <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0, marginRight: 12 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                            <View style={{ width: 220, height: 28, justifyContent: 'center' }}>
+                              <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} style={{ position: 'absolute', top: 0 }} />
+                            </View>
+                          </View>
                         </View>
-                        <Text style={styles.totalRatings}>{prompt.totalRatings} ratings</Text>
-                      </View>
-                      <View style={styles.ratingBreakdown}>
-                        {[5, 4, 3, 2, 1].map((rating) => (
-                          <RatingBar
-                            key={rating}
-                            rating={rating}
-                            count={prompt.breakdown[rating as keyof typeof prompt.breakdown]}
-                            total={prompt.totalRatings}
-                          />
-                        ))}
-                      </View>
-                      <View style={styles.feedbackContainer}>
-                        <Text style={styles.feedbackTitle}>Common Feedback</Text>
-                        {prompt.feedback.slice(0, 3).map((item, index) => (
-                          <FeedbackComment key={index} comment={item.comment} count={item.count} />
-                        ))}
-                      </View>
-                    </View>
-                  ))}
+                      );
+                    })}
+                  </View>
                 </View>
-              </>
-            )}
-          </View>
-        </ScrollView>
-
+              </ScrollView>
+            </View>
+          </Animated.View>
+        </View>
         <PhotoFeedbackModal 
           photo={selectedPhoto} 
           visible={!!selectedPhoto} 
@@ -514,6 +656,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafbfc',
     borderRadius: 16,
     padding: 16,
+    paddingBottom: 32,
     marginBottom: 18,
     shadowColor: '#222',
     shadowOffset: { width: 0, height: 2 },
@@ -536,14 +679,21 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'column',
     alignItems: 'flex-start',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 12,
     marginLeft: 8,
+  },
+  menuRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   scoreLabel: {
     fontSize: 22,
@@ -740,6 +890,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 0,
     fontWeight: '500',
+  },
+  promptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 12,
+    marginBottom: 0,
   },
 });
 
