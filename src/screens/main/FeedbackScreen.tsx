@@ -9,8 +9,8 @@
  * State and logic are managed locally for demonstration purposes.
  */
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, TextInput, Modal } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, TextInput, Modal, Animated } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../config/theme';
@@ -214,6 +214,79 @@ const PhotoFeedbackModal = ({ photo, visible, onClose }: { photo: Photo | null, 
   );
 };
 
+// Updated colors for better visual balance
+const KEEP_COLOR = '#22c55e';
+const NEUTRAL_COLOR = '#e5e7eb';
+const REMOVE_COLOR = '#ef233c';
+
+// Bar chart for photo feedback
+const PhotoBarChart = ({ keep, neutral, remove }: { keep: number; neutral: number; remove: number }) => {
+  const total = keep + neutral + remove;
+  const keepPct = total ? keep / total : 0;
+  const removePct = total ? remove / total : 0;
+  const neutralPct = total ? neutral / total : 0;
+  const BAR_WIDTH = 180;
+  const BAR_HEIGHT = 28;
+  const minLabelWidth = 28;
+
+  // Animated values for each segment
+  const keepAnim = useRef(new Animated.Value(0)).current;
+  const removeAnim = useRef(new Animated.Value(0)).current;
+  const neutralAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    keepAnim.setValue(0);
+    removeAnim.setValue(0);
+    neutralAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(keepAnim, {
+        toValue: keepPct,
+        duration: 1200,
+        useNativeDriver: false,
+      }),
+      Animated.delay(120),
+      Animated.timing(removeAnim, {
+        toValue: removePct,
+        duration: 1200,
+        useNativeDriver: false,
+      }),
+      Animated.delay(120),
+      Animated.timing(neutralAnim, {
+        toValue: neutralPct,
+        duration: 1200,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [keepPct, removePct, neutralPct, keepAnim, removeAnim, neutralAnim]);
+
+  // Helper for below label
+  const BelowLabel = ({ value, color }: { value: number; color: string }) => (
+    <Text style={{ color, fontWeight: '600', fontSize: 13, opacity: 0.7, textAlign: 'center', marginTop: 2 }}>{value}</Text>
+  );
+
+  return (
+    <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+      <View style={{ width: BAR_WIDTH, height: BAR_HEIGHT, flexDirection: 'row', borderRadius: 8, overflow: 'hidden', backgroundColor: 'transparent' }}>
+        <Animated.View style={{ flex: keepAnim, backgroundColor: KEEP_COLOR, minWidth: keep ? 2 : 0 }} />
+        <Animated.View style={{ flex: removeAnim, backgroundColor: REMOVE_COLOR, minWidth: remove ? 2 : 0 }} />
+        <Animated.View style={{ flex: neutralAnim, backgroundColor: NEUTRAL_COLOR, minWidth: neutral ? 2 : 0 }} />
+      </View>
+      {/* Always show all numbers below */}
+      <View style={{ width: BAR_WIDTH, flexDirection: 'row', marginTop: 2 }}>
+        <View style={{ flex: keep, alignItems: 'center', minWidth: keep ? 2 : 0 }}>
+          {keep > 0 && <BelowLabel value={keep} color={KEEP_COLOR} />}
+        </View>
+        <View style={{ flex: remove, alignItems: 'center', minWidth: remove ? 2 : 0 }}>
+          {remove > 0 && <BelowLabel value={remove} color={REMOVE_COLOR} />}
+        </View>
+        <View style={{ flex: neutral, alignItems: 'center', minWidth: neutral ? 2 : 0 }}>
+          {neutral > 0 && <BelowLabel value={neutral} color={'#888'} />}
+        </View>
+      </View>
+    </View>
+  );
+};
+
 const FeedbackScreen = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
@@ -260,6 +333,7 @@ const FeedbackScreen = () => {
             <Text style={[styles.tabText, activeTab === 'prompts' && styles.activeTabText]}>Prompts</Text>
           </TouchableOpacity>
         </View>
+        <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
         <ScrollView style={styles.content}>
           <View style={styles.section}>
             {activeTab === 'photos' && (
@@ -270,30 +344,15 @@ const FeedbackScreen = () => {
                     const neutrals = photo.ratings?.neutral || 0;
                     const removes = photo.ratings?.remove || 0;
                     return (
-                      <View key={photo.id} style={styles.photoRow}>
-                        <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
-                        <View style={styles.photoRatingsColumn}>
-                          <View style={[styles.ratingsBlock, { width: RATINGS_BLOCK_WIDTH }]}> 
-                            {/* Total Score above */}
+                      <View key={photo.id} style={styles.photoCard}>
+                        <View style={styles.photoRow}>
+                          <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
+                          <View style={styles.photoBarChartCol}>
                             <View style={styles.scoreRow}>
-                              <Ionicons name="star-outline" size={22} color="#222" style={{ marginRight: 6 }} />
                               <Text style={styles.scoreLabel}>Total:</Text>
                               <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 6 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
                             </View>
-                            <View style={styles.photoRatingsGroup}>
-                              <View style={styles.photoRatingItem}>
-                                <View style={styles.iconBox}><Ionicons name="checkmark-outline" size={24} color="#222" /></View>
-                                <View style={styles.countBox}><Text style={styles.photoRatingCount}>{keeps}</Text></View>
-                              </View>
-                              <View style={[styles.photoRatingItem, { marginLeft: PAIR_MARGIN }]}> 
-                                <View style={styles.iconBox}><Ionicons name="remove-circle-outline" size={24} color="#222" /></View>
-                                <View style={styles.countBox}><Text style={styles.photoRatingCount}>{neutrals}</Text></View>
-                              </View>
-                              <View style={[styles.photoRatingItem, { marginLeft: PAIR_MARGIN }]}> 
-                                <View style={styles.iconBox}><MaterialCommunityIcons name="swap-horizontal" size={24} color="#222" /></View>
-                                <View style={styles.countBox}><Text style={styles.photoRatingCount}>{removes}</Text></View>
-                              </View>
-                            </View>
+                            <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} />
                           </View>
                         </View>
                       </View>
@@ -451,12 +510,20 @@ const styles = StyleSheet.create({
   photoList: {
     marginTop: 0,
   },
+  photoCard: {
+    backgroundColor: '#fafbfc',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 18,
+    shadowColor: '#222',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
   photoRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    alignItems: 'center',
     gap: 0,
   },
   photoListImage: {
@@ -465,50 +532,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 12,
   },
-  photoRatingsColumn: {
+  photoBarChartCol: {
     flex: 1,
     flexDirection: 'column',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    height: 128,
+    gap: 12,
+    marginLeft: 8,
   },
-  ratingsBlock: {
-    alignItems: 'flex-start',
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   scoreLabel: {
     fontSize: 22,
     fontWeight: '400',
   },
-  photoRatingsGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    width: 180,
-    marginLeft: 0,
-  },
-  photoRatingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 56,
-    justifyContent: 'flex-start',
-    marginRight: 0,
-  },
-  iconBox: {
-    width: 28,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  countBox: {
-    width: 36,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    marginLeft: 1,
-  },
-  photoRatingCount: {
-    fontSize: 20,
-    fontWeight: '400',
-    marginLeft: 4,
-    color: '#222',
+  scoreText: {
+    fontSize: 22,
+    fontWeight: 'bold',
   },
   ratingSummary: {
     flexDirection: 'row',
@@ -530,33 +573,6 @@ const styles = StyleSheet.create({
   },
   ratingBreakdown: {
     gap: 8,
-  },
-  ratingBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  ratingLabel: {
-    width: 60,
-    fontSize: 14,
-    color: '#666',
-  },
-  ratingBarBackground: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  ratingBarFill: {
-    height: '100%',
-    backgroundColor: '#FFD700',
-  },
-  ratingCount: {
-    width: 30,
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'right',
   },
   promptItem: {
     marginBottom: 24,
@@ -665,15 +681,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  scoreText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
   tabBar: {
     flexDirection: 'row',
     marginTop: 4,
@@ -698,6 +705,41 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#222',
     fontWeight: '700',
+  },
+  ratingBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ratingLabel: {
+    width: 60,
+    fontSize: 14,
+    color: '#666',
+  },
+  ratingBarBackground: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  ratingBarFill: {
+    height: '100%',
+    backgroundColor: '#FFD700',
+  },
+  ratingCount: {
+    width: 30,
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'right',
+  },
+  totalReviewsText: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 0,
+    fontWeight: '500',
   },
 });
 
