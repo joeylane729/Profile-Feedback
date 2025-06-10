@@ -218,30 +218,17 @@ const ProfileScreen = () => {
     );
   };
 
+  const startTestLogic = () => {
+    const mockTestId = `test_${Date.now()}`;
+    setTestStatus({
+      status: 'testing',
+      testId: mockTestId,
+    });
+    setData(prev => ({ ...prev, status: 'testing' }));
+  };
+
   const handleNewTest = () => {
-    Alert.alert(
-      'Start New Test',
-      'Are you sure you want to start a new test? Your profile will be locked until the test is complete.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Start New Test',
-          style: 'default',
-          onPress: () => {
-            // Mock starting a new test
-            const mockTestId = `test_${Date.now()}`;
-            setTestStatus({
-              status: 'testing',
-              testId: mockTestId,
-            });
-            setData(prev => ({ ...prev, status: 'testing' }));
-          },
-        },
-      ],
-    );
+    navigation.navigate('TestSetupScreen', { onTestComplete: startTestLogic });
   };
 
   const handleViewResults = () => {
@@ -434,9 +421,15 @@ const ProfileScreen = () => {
                 data={groupPhotosInColumns(data.photos)}
                 renderItem={({ item: column }) => (
                   <View style={styles.photoColumn}>
-                    {column.map(photo => (
-                      <View key={photo.id} style={styles.photoContainer}>
+                    {column.map((photo, idx) => (
+                      <View key={photo.id} style={{ position: 'relative', marginRight: 8 }}>
                         <Image source={{ uri: photo.uri }} style={styles.photo} />
+                        <TouchableOpacity
+                          style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2 }}
+                          onPress={() => navigation.navigate('TestSetupScreen', { preselectedPhoto: photo.id })}
+                        >
+                          <MaterialCommunityIcons name="flask-outline" size={18} color="#2563eb" />
+                        </TouchableOpacity>
                       </View>
                     ))}
                   </View>
@@ -459,10 +452,16 @@ const ProfileScreen = () => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Prompts</Text>
               {data.prompts.map((prompt) => (
-                <View key={prompt.id} style={styles.promptContainer}>
+                <View key={prompt.id} style={{ position: 'relative', marginBottom: 16 }}>
                   <Text style={styles.promptQuestion}>{prompt.question}</Text>
                   <View style={styles.contentBox}>
                     <Text style={styles.promptAnswer}>{prompt.answer}</Text>
+                    <TouchableOpacity
+                      style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2 }}
+                      onPress={() => navigation.navigate('TestSetupScreen', { preselectedPrompt: prompt.id })}
+                    >
+                      <MaterialCommunityIcons name="flask-outline" size={18} color="#2563eb" />
+                    </TouchableOpacity>
                   </View>
                 </View>
               ))}

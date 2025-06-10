@@ -14,6 +14,8 @@ import SignUpScreen from '../screens/auth/SignUpScreen';
 import FeedbackScreen from '../screens/main/FeedbackScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import DiscoverScreen from '../screens/main/DiscoverScreen';
+import TestSetupScreen from '../screens/abtest/TestSetupScreen';
+import TestReviewScreen from '../screens/abtest/TestReviewScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -84,6 +86,8 @@ const AppNavigator = () => {
         ) : (
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Main" component={MainTabNavigator} />
+            <Stack.Screen name="TestSetupScreen" component={TestSetupScreen} />
+            <Stack.Screen name="TestReviewScreen" component={TestReviewScreen} />
           </Stack.Navigator>
         )}
       </NavigationContainer>
