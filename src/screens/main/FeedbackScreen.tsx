@@ -290,13 +290,17 @@ const PhotoBarChart = ({ keep, neutral, remove, style }: { keep: number; neutral
 };
 
 const FeedbackScreen = () => {
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [activeTab, setActiveTab] = useState<'photos' | 'prompts'>('photos');
   const translateX = useRef(new Animated.Value(0)).current;
   const { width } = Dimensions.get('window');
   const gestureStartTab = useRef<'photos' | 'prompts'>(activeTab);
   const isSwiping = useRef(false);
+
+  // Calculate score for each photo and sort
+  const sortedPhotos = DUMMY_FEEDBACK.photos
+    .map(photo => ({ ...photo, score: (photo.ratings?.keep || 0) - (photo.ratings?.remove || 0) }))
+    .sort((a, b) => b.score - a.score);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => false,
@@ -356,33 +360,6 @@ const FeedbackScreen = () => {
     }).start();
   }, [activeTab, width]);
 
-  // Calculate score for each photo and sort
-  const sortedPhotos = DUMMY_FEEDBACK.photos
-    .map(photo => ({ ...photo, score: (photo.ratings?.keep || 0) - (photo.ratings?.remove || 0) }))
-    .sort((a, b) => b.score - a.score);
-  const totalPages = Math.ceil(sortedPhotos.length / PHOTOS_PER_PAGE);
-  const startIndex = (currentPage - 1) * PHOTOS_PER_PAGE;
-  const endIndex = startIndex + PHOTOS_PER_PAGE;
-  const currentPhotos = sortedPhotos.slice(startIndex, endIndex);
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(prev => prev + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-    }
-  };
-
-  // Helper constants for dynamic width
-  const ICON_BOX_WIDTH = 28;
-  const COUNT_BOX_WIDTH = 36;
-  const PAIR_MARGIN = 14;
-  const RATINGS_BLOCK_WIDTH = 3 * (ICON_BOX_WIDTH + COUNT_BOX_WIDTH) + 2 * PAIR_MARGIN; // 3 pairs, 2 gaps
-
   const renderContent = () => {
     if (activeTab === 'photos') {
       return (
@@ -390,7 +367,7 @@ const FeedbackScreen = () => {
           <View style={styles.section}>
             <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
             <View style={styles.photoList}>
-              {currentPhotos.map((photo, index) => {
+              {sortedPhotos.map((photo, index) => {
                 const keeps = photo.ratings?.keep || 0;
                 const neutrals = photo.ratings?.neutral || 0;
                 const removes = photo.ratings?.remove || 0;
@@ -414,25 +391,6 @@ const FeedbackScreen = () => {
                   </View>
                 );
               })}
-            </View>
-            <View style={styles.paginationContainer}>
-              <TouchableOpacity 
-                style={[styles.paginationButton, currentPage === 1 && styles.disabledButton]}
-                onPress={handlePrevPage}
-                disabled={currentPage === 1}
-              >
-                <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? "#ccc" : "#007AFF"} />
-              </TouchableOpacity>
-              <Text style={styles.pageText}>
-                Page {currentPage} of {totalPages}
-              </Text>
-              <TouchableOpacity 
-                style={[styles.paginationButton, currentPage === totalPages && styles.disabledButton]}
-                onPress={handleNextPage}
-                disabled={currentPage === totalPages}
-              >
-                <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? "#ccc" : "#007AFF"} />
-              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -550,8 +508,6 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   sectionTitle: {
     fontSize: 20,
