@@ -28,8 +28,9 @@ import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { MainTabParamList } from '../../navigation/types';
+import { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { colors } from '../../config/theme';
 import CreateProfileScreen from './CreateProfileScreen';
@@ -89,7 +90,7 @@ const ProfileScreen = () => {
   const [userData, setUserData] = useState<{ name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [testStatus, setTestStatus] = useState<TestStatus | null>(null);
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const progressAnim = React.useRef(new Animated.Value(0)).current;
   const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
@@ -232,7 +233,7 @@ const ProfileScreen = () => {
   };
 
   const handleViewResults = () => {
-    navigation.navigate('Feedback');
+    navigation.navigate('Main', { screen: 'Feedback' });
   };
 
   const showMenu = () => {
