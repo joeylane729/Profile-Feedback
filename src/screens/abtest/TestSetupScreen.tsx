@@ -11,6 +11,11 @@ const mockProfile = {
     { id: '2', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800' },
     { id: '3', uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800' },
   ],
+  prompts: [
+    { id: '1', question: "I'm looking for", answer: "Someone who can make me laugh and isn't afraid to be themselves." },
+    { id: '2', question: "My ideal first date", answer: "Coffee and a walk in the park, followed by a visit to a local art gallery or museum." },
+    { id: '3', question: "A fact about me", answer: "I once biked across the country!" },
+  ],
 };
 
 export default function TestSetupScreen({ navigation, route }: any) {
@@ -44,22 +49,8 @@ export default function TestSetupScreen({ navigation, route }: any) {
     }
   };
 
-  const handleContinue = () => {
-    if (!replacementUri) return;
-    // Pass to review screen (or next step)
-    navigation.navigate('TestReviewScreen', {
-      selectedPhotos: [preselectedPhotoId],
-      selectedPrompts: [],
-      note: '',
-      previousScore: 0,
-      mockProfile,
-      onTestComplete: route?.params?.onTestComplete,
-      photoReplacements: { [preselectedPhotoId]: replacementUri },
-      promptReplacements: {},
-    });
-  };
-
   const handleReadyToTest = () => {
+    if (!replacementUri) return;
     setShowConfirmModal(true);
     setErrorMsg('');
   };
@@ -70,11 +61,8 @@ export default function TestSetupScreen({ navigation, route }: any) {
       return;
     }
     setShowConfirmModal(false);
-    // Trigger the test logic (same as profile page)
-    if (route?.params?.onTestComplete) {
-      route.params.onTestComplete();
-    }
-    navigation.goBack();
+    // Instead of calling onTestComplete directly, navigate to ProfileScreen with a param
+    navigation.navigate('Main', { screen: 'Profile', params: { triggerTest: true } });
   };
 
   if (!selectedPhoto) {

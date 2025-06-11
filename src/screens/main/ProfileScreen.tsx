@@ -140,6 +140,19 @@ const ProfileScreen = () => {
     }
   }, [testStatus?.status]);
 
+  useEffect(() => {
+    // Check if navigation param requests to trigger test
+    const unsubscribe = navigation.addListener('focus', () => {
+      const params = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'Profile')?.params;
+      if (params?.triggerTest) {
+        startTestLogic();
+        // Remove the param so it doesn't retrigger
+        navigation.setParams({ triggerTest: undefined });
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const fetchUserData = async () => {
     try {
       console.log('Fetching user data with token:', token);
@@ -205,15 +218,7 @@ const ProfileScreen = () => {
         {
           text: 'Start Testing',
           style: 'default',
-          onPress: () => {
-            // Mock starting a test
-            const mockTestId = `test_${Date.now()}`;
-            setTestStatus({
-              status: 'testing',
-              testId: mockTestId,
-            });
-            setData(prev => ({ ...prev, status: 'testing' }));
-          },
+          onPress: startTestLogic,
         },
       ],
     );
@@ -226,6 +231,7 @@ const ProfileScreen = () => {
       testId: mockTestId,
     });
     setData(prev => ({ ...prev, status: 'testing' }));
+    setHasProfile(true); // Ensure profile is always shown during testing
   };
 
   const handleNewTest = () => {
