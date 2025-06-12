@@ -10,8 +10,9 @@ const PHOTO_CAROUSEL_HEIGHT = height;
 const PHOTO_CAROUSEL_WIDTH = width;
 const PHOTO_SIZE = width;
 
-const DUMMY_PROFILES = [
+const DUMMY_REVIEWS = [
   {
+    type: 'profile',
     name: 'Samantha',
     age: 28,
     location: 'San Francisco, CA',
@@ -34,6 +35,14 @@ const DUMMY_PROFILES = [
     ],
   },
   {
+    type: 'comparison',
+    target: 'photo',
+    left: { uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60', label: 'Old Photo' },
+    right: { uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60', label: 'New Photo' },
+    context: 'Samantha, 28, San Francisco, CA',
+  },
+  {
+    type: 'profile',
     name: 'Alex',
     age: 31,
     location: 'New York, NY',
@@ -54,6 +63,7 @@ const DUMMY_PROFILES = [
     ],
   },
   {
+    type: 'profile',
     name: 'Taylor',
     age: 26,
     location: 'Austin, TX',
@@ -93,6 +103,8 @@ const DiscoverScreen = () => {
   const [activeFeedback, setActiveFeedback] = useState<'keep' | 'remove' | 'neutral' | null>(null);
   const [promptFeedback, setPromptFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral'}>({});
   const [activePromptFeedback, setActivePromptFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral' | null}>({});
+  const [selected, setSelected] = useState<null | 'left' | 'right'>(null);
+  const animOpacity = useRef(new Animated.Value(1)).current;
   const flatListRef = useRef<FlatList>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const expandAnimation = useRef(new Animated.Value(0)).current;
@@ -105,11 +117,36 @@ const DiscoverScreen = () => {
   const removeButtonAnim = useRef(new Animated.Value(0)).current;
   const neutralButtonAnim = useRef(new Animated.Value(0)).current;
   const keepButtonAnim = useRef(new Animated.Value(0)).current;
+  const [questionTextHeight, setQuestionTextHeight] = useState(40); // default guess
 
-  const profile = DUMMY_PROFILES[profileIndex];
+  const profile = DUMMY_REVIEWS[profileIndex];
+
+  // Helper to check if current review is a profile
+  const isProfile = profile.type === 'profile';
+
+  // Only use photos if it's a profile
+  const profilePhotos = isProfile && Array.isArray(profile.photos) ? profile.photos : [];
+
+  // Only use prompts if it's a profile
+  const profilePrompts = isProfile && Array.isArray(profile.prompts) ? profile.prompts : [];
+
+  // Progress: total number of photos with feedback
+  const ratedCount = isProfile ? profilePhotos.filter(p => photoFeedback[p.id]).length : 0;
+  const progress = isProfile ? ratedCount / profilePhotos.length : 0;
+
+  // Animated progress value
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  // We'll animate progress after the photo transitions
+  const animateProgress = (toValue: number) => {
+    Animated.timing(progressAnim, {
+      toValue,
+      duration: 350,
+      useNativeDriver: false,
+    }).start();
+  };
 
   const getSelectedButtonStyle = (type: 'remove' | 'neutral' | 'keep') => {
-    const currentPhotoId = profile.photos[activePhoto]?.id;
+    const currentPhotoId = profilePhotos[activePhoto]?.id;
     const isSelected = activeFeedback === type;
     
     switch (type) {
@@ -142,9 +179,9 @@ const DiscoverScreen = () => {
 
     // Show selected state for a moment before transitioning
     setTimeout(() => {
-      if (activePhoto === profile.photos.length - 1) {
+      if (activePhoto === profilePhotos.length - 1) {
         setHasSeenLastPhoto(true);
-        animateProgress((profile.photos.filter(p => nextPhotoFeedback[p.id]).length) / profile.photos.length);
+        animateProgress((profilePhotos.filter(p => nextPhotoFeedback[p.id]).length) / profilePhotos.length);
         // Don't clear activeFeedback for the last photo
         setTimeout(() => {
           setIsTransitioning(false);
@@ -152,7 +189,7 @@ const DiscoverScreen = () => {
       } else {
         InteractionManager.runAfterInteractions(() => {
           goToPhoto(activePhoto + 1);
-          animateProgress((profile.photos.filter(p => nextPhotoFeedback[p.id]).length) / profile.photos.length);
+          animateProgress((profilePhotos.filter(p => nextPhotoFeedback[p.id]).length) / profilePhotos.length);
           setTimeout(() => {
             setIsTransitioning(false);
             setActiveFeedback(null);
@@ -163,11 +200,11 @@ const DiscoverScreen = () => {
   };
 
   const goToPhoto = (index: number) => {
-    if (index >= 0 && index < profile.photos.length) {
+    if (index >= 0 && index < profilePhotos.length) {
       flatListRef.current?.scrollToIndex({ index, animated: true });
       setActivePhoto(index);
       // Set active feedback based on the photo's feedback
-      const photoId = profile.photos[index].id;
+      const photoId = profilePhotos[index].id;
       if (photoFeedback[photoId]) {
         setActiveFeedback(photoFeedback[photoId]);
       }
@@ -186,7 +223,7 @@ const DiscoverScreen = () => {
     const index = Math.round(e.nativeEvent.contentOffset.x / PHOTO_CAROUSEL_WIDTH);
     setActivePhoto(index);
     // Set active feedback based on the photo's feedback
-    const photoId = profile.photos[index].id;
+    const photoId = profilePhotos[index].id;
     if (photoFeedback[photoId]) {
       setActiveFeedback(photoFeedback[photoId]);
     }
@@ -205,7 +242,7 @@ const DiscoverScreen = () => {
       duration: 250,
       useNativeDriver: true,
     }).start(() => {
-      setProfileIndex((prev) => (prev + 1) % DUMMY_PROFILES.length);
+      setProfileIndex((prev) => (prev + 1) % DUMMY_REVIEWS.length);
       setActivePhoto(0);
       setIsProfileExpanded(false);
       setHasSeenLastPhoto(false);
@@ -303,21 +340,6 @@ const DiscoverScreen = () => {
     });
   };
 
-  // Progress: total number of photos with feedback
-  const ratedCount = profile.photos.filter(p => photoFeedback[p.id]).length;
-  const progress = ratedCount / profile.photos.length;
-
-  // Animated progress value
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  // We'll animate progress after the photo transitions
-  const animateProgress = (toValue: number) => {
-    Animated.timing(progressAnim, {
-      toValue,
-      duration: 350,
-      useNativeDriver: false,
-    }).start();
-  };
-
   const handlePromptFeedback = (promptId: string, feedback: 'keep' | 'remove' | 'neutral') => {
     setActivePromptFeedback(prev => ({ ...prev, [promptId]: feedback }));
     setPromptFeedback(prev => ({ ...prev, [promptId]: feedback }));
@@ -363,10 +385,27 @@ const DiscoverScreen = () => {
 
   // Add this helper function to check if all prompts have feedback
   const areAllPromptsRated = () => {
-    return profile.prompts.every(prompt => promptFeedback[prompt.id]);
+    return profilePrompts.every(prompt => promptFeedback[prompt.id]);
   };
 
+  // Reset animOpacity and selected when profileIndex changes
+  useEffect(() => {
+    animOpacity.setValue(1);
+    Animated.timing(profileOpacity, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    setIsProfileExpanded(false);
+    setActivePhoto(0);
+    setSelected(null);
+    console.log('profileIndex changed, animated profileOpacity to 1, cleared selected, collapsed profile, reset activePhoto');
+  }, [profileIndex]);
+
+  console.log('DiscoverScreen render', { profileIndex, profile, isProfile });
+
   if (!profile) {
+    console.log('No profile at index', profileIndex);
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
@@ -376,6 +415,86 @@ const DiscoverScreen = () => {
     );
   }
 
+  if (!isProfile) {
+    console.log('Rendering comparison review', profile, { profileIndex, selected });
+    if (!profile.left || !profile.right) {
+      console.log('Comparison data missing', profile);
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
+            <Text style={{ fontSize: 20, color: '#888' }}>Comparison data missing</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+    console.log('Rendering Animated.View for comparison review', { profileIndex, selected });
+    const VERTICAL_MARGIN = 16; // margin between photos
+    const OUTER_MARGIN = 24; // margin above first and below last photo
+    const HEADER_HEIGHT = 80; // estimate for name/age/location section
+    const availableHeight = height - insets.top - insets.bottom - tabBarHeight - HEADER_HEIGHT - OUTER_MARGIN * 2 - VERTICAL_MARGIN - questionTextHeight;
+    const maxSquareHeight = availableHeight / 2;
+    const maxSquareWidth = width - 32; // 16px horizontal padding on each side
+    const SQUARE_SIZE = Math.floor(Math.min(maxSquareHeight, maxSquareWidth));
+    const handleSelect = (side: 'left' | 'right') => {
+      console.log('handleSelect called with side:', side);
+      setSelected(side);
+      Animated.timing(animOpacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        // Fade in new profile smoothly
+        profileOpacity.setValue(0);
+        setProfileIndex((prev) => {
+          const nextIndex = (prev + 1) % DUMMY_REVIEWS.length;
+          console.log('setProfileIndex called. Advancing to index:', nextIndex);
+          return nextIndex;
+        });
+        setSelected(null);
+        animOpacity.setValue(1);
+      });
+    };
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <Animated.View key={profileIndex} style={[styles.container, { justifyContent: 'flex-start', alignItems: 'center', opacity: animOpacity }]}> 
+          <View style={{ alignItems: 'center', marginTop: 36, marginBottom: 0, flexDirection: 'row', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#222' }}>{profile.context.split(',')[0]}</Text>
+            <Text style={{ fontSize: 24, color: '#222', marginLeft: 10, fontWeight: 'normal' }}>{profile.context.split(',')[1]?.trim()}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, marginTop: 6 }}>
+            <Ionicons name="location-outline" size={18} color="#666" style={{ marginRight: 4 }} />
+            <Text style={{ fontSize: 16, color: '#666' }}>{profile.context.split(',').slice(2).join(',').trim()}</Text>
+          </View>
+          <View style={{ width: '100%', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: VERTICAL_MARGIN, marginTop: OUTER_MARGIN, marginBottom: OUTER_MARGIN }}>
+            <TouchableOpacity
+              style={{ width: SQUARE_SIZE, height: SQUARE_SIZE, borderRadius: 18, borderWidth: 4, borderColor: selected === 'left' ? '#2563eb' : '#eee', overflow: 'hidden', marginBottom: VERTICAL_MARGIN / 2 }}
+              activeOpacity={0.85}
+              onPress={() => handleSelect('left')}
+              disabled={!!selected}
+            >
+              <Image source={{ uri: profile.left.uri }} style={{ width: SQUARE_SIZE, height: SQUARE_SIZE, borderRadius: 18, resizeMode: 'cover' }} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ width: SQUARE_SIZE, height: SQUARE_SIZE, borderRadius: 18, borderWidth: 4, borderColor: selected === 'right' ? '#2563eb' : '#eee', overflow: 'hidden', marginTop: VERTICAL_MARGIN / 2 }}
+              activeOpacity={0.85}
+              onPress={() => handleSelect('right')}
+              disabled={!!selected}
+            >
+              <Image source={{ uri: profile.right.uri }} style={{ width: SQUARE_SIZE, height: SQUARE_SIZE, borderRadius: 18, resizeMode: 'cover' }} />
+            </TouchableOpacity>
+          </View>
+          <Text
+            style={{ fontSize: 18, fontWeight: '600', color: '#222', marginBottom: 18 }}
+            onLayout={e => setQuestionTextHeight(e.nativeEvent.layout.height + 18)}
+          >
+            Which do you prefer?
+          </Text>
+        </Animated.View>
+      </SafeAreaView>
+    );
+  }
+
+  console.log('Rendering profile review', { profileIndex, selected, isProfile, profile });
   const translateY = Animated.add(
     pan,
     expandAnimation.interpolate({
@@ -414,7 +533,7 @@ const DiscoverScreen = () => {
           <View style={styles.photoContainer}>
             <FlatList
               ref={flatListRef}
-              data={profile.photos}
+              data={profilePhotos}
               keyExtractor={item => item.id}
               horizontal
               pagingEnabled
@@ -442,7 +561,7 @@ const DiscoverScreen = () => {
               ]}>
                 <TouchableOpacity 
                   style={styles.photoFeedbackButtonContent}
-                  onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'remove')}
+                  onPress={() => handlePhotoFeedback(profilePhotos[activePhoto].id, 'remove')}
                   activeOpacity={0.7}
                   disabled={isTransitioning}
                 >
@@ -467,7 +586,7 @@ const DiscoverScreen = () => {
               ]}>
                 <TouchableOpacity 
                   style={styles.photoFeedbackButtonContent}
-                  onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'neutral')}
+                  onPress={() => handlePhotoFeedback(profilePhotos[activePhoto].id, 'neutral')}
                   activeOpacity={0.7}
                   disabled={isTransitioning}
                 >
@@ -492,7 +611,7 @@ const DiscoverScreen = () => {
               ]}>
                 <TouchableOpacity 
                   style={styles.photoFeedbackButtonContent}
-                  onPress={() => handlePhotoFeedback(profile.photos[activePhoto].id, 'keep')}
+                  onPress={() => handlePhotoFeedback(profilePhotos[activePhoto].id, 'keep')}
                   activeOpacity={0.7}
                   disabled={isTransitioning}
                 >
@@ -596,7 +715,7 @@ const DiscoverScreen = () => {
 
               {/* Prompt Responses as a Single Section */}
               <View style={styles.promptsContainer}>
-                {profile.prompts.map((prompt: any) => (
+                {profilePrompts.map((prompt: any) => (
                   <View key={prompt.id} style={styles.promptBox}>
                     <Text style={styles.promptQuestion}>{prompt.question}</Text>
                     <Text style={styles.promptAnswer}>{prompt.answer}</Text>
