@@ -22,6 +22,7 @@ import {
   Animated,
   Platform,
   ActionSheetIOS,
+  TextInput,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Fontisto } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -34,6 +35,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { colors } from '../../config/theme';
 import CreateProfileScreen from './CreateProfileScreen';
+import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get('window');
 const PHOTO_SIZE = (width - 48) / 3;
@@ -96,6 +98,8 @@ const ProfileScreen = () => {
   const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
   const [hasProfile, setHasProfile] = useState(false); // always false by default for now
   const [showCreate, setShowCreate] = useState(false);
+  const [editingBio, setEditingBio] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -279,6 +283,61 @@ const ProfileScreen = () => {
     );
   };
 
+  // Add photo logic
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const newPhoto = {
+        id: Date.now().toString(),
+        uri: result.assets[0].uri,
+      };
+      setData(prev => ({ ...prev, photos: [...prev.photos, newPhoto] }));
+    }
+  };
+
+  // Remove photo logic
+  const removePhoto = (photoId: string) => {
+    Alert.alert(
+      'Remove Photo',
+      'Are you sure you want to remove this photo?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setData(prev => ({ ...prev, photos: prev.photos.filter(photo => photo.id !== photoId) }));
+          },
+        },
+      ]
+    );
+  };
+
+  // Edit bio logic
+  const handleBioChange = (text: string) => {
+    setData(prev => ({ ...prev, bio: text }));
+  };
+
+  // Edit prompt logic
+  const handlePromptChange = (promptId: string, text: string) => {
+    setData(prev => ({
+      ...prev,
+      prompts: prev.prompts.map(p =>
+        p.id === promptId ? { ...p, answer: text } : p
+      ),
+    }));
+  };
+
   const renderHeader = () => {
     const progress = Math.min(credits / REQUIRED_CREDITS, 1);
     const hasEnough = credits >= REQUIRED_CREDITS;
@@ -423,7 +482,14 @@ const ProfileScreen = () => {
           <>
             <View style={styles.statusSection}>{renderStatusIndicator()}</View>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Photos</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={styles.sectionTitle}>Photos</Text>
+                {data.status === 'not_tested' && (
+                  <TouchableOpacity onPress={pickImage} style={{ padding: 4 }}>
+                    <Ionicons name="add-circle-outline" size={24} color="#222" />
+                  </TouchableOpacity>
+                )}
+              </View>
               <FlatList
                 data={groupPhotosInColumns(data.photos)}
                 renderItem={({ item: column }) => (
@@ -431,12 +497,23 @@ const ProfileScreen = () => {
                     {column.map((photo, idx) => (
                       <View key={photo.id} style={{ position: 'relative', marginRight: 8 }}>
                         <Image source={{ uri: photo.uri }} style={styles.photo} />
-                        <TouchableOpacity
-                          style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2 }}
-                          onPress={() => navigation.navigate('TestSetupScreen', { preselectedPhoto: photo.id })}
-                        >
-                          <MaterialCommunityIcons name="flask-outline" size={18} color="#2563eb" />
-                        </TouchableOpacity>
+                        {data.status !== 'not_tested' && (
+                          <TouchableOpacity
+                            style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2, opacity: data.status === 'testing' ? 0.4 : 1 }}
+                            onPress={() => navigation.navigate('TestSetupScreen', { preselectedPhoto: photo.id })}
+                            disabled={data.status === 'testing'}
+                          >
+                            <MaterialCommunityIcons name="flask-outline" size={18} color="#2563eb" />
+                          </TouchableOpacity>
+                        )}
+                        {data.status === 'not_tested' && (
+                          <TouchableOpacity
+                            style={{ position: 'absolute', top: 4, left: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2 }}
+                            onPress={() => removePhoto(photo.id)}
+                          >
+                            <Ionicons name="close-circle" size={20} color="#ff3b30" />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     ))}
                   </View>
@@ -452,7 +529,25 @@ const ProfileScreen = () => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Bio</Text>
               <View style={styles.contentBox}>
-                <Text style={styles.bioText}>{data.bio}</Text>
+                {data.status === 'not_tested' ? (
+                  editingBio ? (
+                    <TextInput
+                      style={[styles.bioText, { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, minHeight: 80 }]}
+                      value={data.bio}
+                      onChangeText={handleBioChange}
+                      multiline
+                      autoFocus
+                      onBlur={() => setEditingBio(false)}
+                      placeholder="Write a short bio about yourself..."
+                    />
+                  ) : (
+                    <TouchableOpacity onPress={() => setEditingBio(true)}>
+                      <Text style={styles.bioText}>{data.bio || 'Write a short bio about yourself...'}</Text>
+                    </TouchableOpacity>
+                  )
+                ) : (
+                  <Text style={styles.bioText}>{data.bio}</Text>
+                )}
               </View>
             </View>
 
@@ -462,13 +557,34 @@ const ProfileScreen = () => {
                 <View key={prompt.id} style={{ position: 'relative', marginBottom: 16 }}>
                   <Text style={styles.promptQuestion}>{prompt.question}</Text>
                   <View style={styles.contentBox}>
-                    <Text style={styles.promptAnswer}>{prompt.answer}</Text>
-                    <TouchableOpacity
-                      style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2 }}
-                      onPress={() => navigation.navigate('TestSetupScreen', { preselectedPrompt: prompt.id })}
-                    >
-                      <MaterialCommunityIcons name="flask-outline" size={18} color="#2563eb" />
-                    </TouchableOpacity>
+                    {data.status === 'not_tested' ? (
+                      editingPrompt === prompt.id ? (
+                        <TextInput
+                          style={[styles.promptAnswer, { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, minHeight: 40 }]}
+                          value={prompt.answer}
+                          onChangeText={text => handlePromptChange(prompt.id, text)}
+                          multiline
+                          autoFocus
+                          onBlur={() => setEditingPrompt(null)}
+                          placeholder={`Answer: ${prompt.question}`}
+                        />
+                      ) : (
+                        <TouchableOpacity onPress={() => setEditingPrompt(prompt.id)}>
+                          <Text style={styles.promptAnswer}>{prompt.answer || `Answer: ${prompt.question}`}</Text>
+                        </TouchableOpacity>
+                      )
+                    ) : (
+                      <Text style={styles.promptAnswer}>{prompt.answer}</Text>
+                    )}
+                    {data.status !== 'not_tested' && (
+                      <TouchableOpacity
+                        style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2, opacity: data.status === 'testing' ? 0.4 : 1 }}
+                        onPress={() => navigation.navigate('TestSetupScreen', { preselectedPrompt: prompt.id })}
+                        disabled={data.status === 'testing'}
+                      >
+                        <MaterialCommunityIcons name="flask-outline" size={18} color="#2563eb" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               ))}

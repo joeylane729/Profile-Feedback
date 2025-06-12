@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, TextInput, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 // Mock profile data (for fallback)
 const mockProfile = {
@@ -30,6 +31,7 @@ export default function TestSetupScreen({ navigation, route }: any) {
   const [errorMsg, setErrorMsg] = useState('');
   const TEST_COST = 5;
   const userCredits = 7; // TODO: Replace with real value or context
+  const [customQuestion, setCustomQuestion] = useState<string>('Which photo do you like better?');
 
   const pickReplacementPhoto = async () => {
     setIsPicking(true);
@@ -62,7 +64,7 @@ export default function TestSetupScreen({ navigation, route }: any) {
     }
     setShowConfirmModal(false);
     // Instead of calling onTestComplete directly, navigate to ProfileScreen with a param
-    navigation.navigate('Main', { screen: 'Profile', params: { triggerTest: true } });
+    navigation.navigate('Main', { screen: 'Profile', params: { triggerTest: true, customQuestion } });
   };
 
   if (!selectedPhoto) {
@@ -75,41 +77,66 @@ export default function TestSetupScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Text style={styles.header}>Test a Photo Change</Text>
-        <Text style={styles.label}>Current Photo</Text>
-        <View style={styles.photoWrapper}>
-          <Image source={{ uri: selectedPhoto.uri }} style={styles.photo} />
-        </View>
-        <Text style={styles.label}>Replacement Photo</Text>
-        {replacementUri ? (
-          <View style={styles.photoWrapper}>
-            <Image source={{ uri: replacementUri }} style={styles.photo} />
-          </View>
-        ) : (
-          <View style={styles.photoWrapper}>
-            <TouchableOpacity
-              style={styles.placeholderCardMatched}
-              onPress={pickReplacementPhoto}
-              disabled={isPicking}
-              activeOpacity={0.85}
-            >
-              <View style={styles.placeholderContentModern}>
-                <Text style={styles.placeholderTextModern}>Add Replacement Photo</Text>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <KeyboardAwareScrollView
+          contentContainerStyle={styles.scrollContainer}
+          enableOnAndroid={true}
+          extraScrollHeight={24}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.container}>
+            <Text style={styles.header}>Test a Photo Change</Text>
+            <Text style={styles.label}>Current Photo</Text>
+            <View style={styles.photoWrapper}>
+              <Image source={{ uri: selectedPhoto.uri }} style={styles.photo} />
+            </View>
+            <Text style={styles.label}>Replacement Photo</Text>
+            {replacementUri ? (
+              <View style={styles.photoWrapper}>
+                <Image source={{ uri: replacementUri }} style={styles.photo} />
               </View>
-              <View style={styles.plusCircleBtnTopRight} pointerEvents="none">
-                <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+            ) : (
+              <View style={styles.photoWrapper}>
+                <TouchableOpacity
+                  style={styles.placeholderCardMatched}
+                  onPress={pickReplacementPhoto}
+                  disabled={isPicking}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.placeholderContentModern}>
+                    <Text style={styles.placeholderTextModern}>Add Replacement Photo</Text>
+                  </View>
+                  <View style={styles.plusCircleBtnTopRight} pointerEvents="none">
+                    <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+                  </View>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            )}
+            {/* Custom Question Input */}
+            <Text style={styles.label}>Optional: Ask Reviewers a Question</Text>
+            <TextInput
+              style={styles.customQuestionInput}
+              placeholder="Which photo do you like better?"
+              value={customQuestion}
+              onChangeText={setCustomQuestion}
+              returnKeyType="done"
+              blurOnSubmit={true}
+              enablesReturnKeyAutomatically={true}
+              onSubmitEditing={() => Keyboard.dismiss()}
+              onBlur={() => Keyboard.dismiss()}
+              multiline={true}
+              numberOfLines={2}
+              textAlignVertical="top"
+            />
+            {replacementUri && (
+              <TouchableOpacity style={styles.continueBtn} onPress={handleReadyToTest}>
+                <Text style={styles.continueText}>Ready to Test</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        )}
-        {replacementUri && (
-          <TouchableOpacity style={styles.continueBtn} onPress={handleReadyToTest}>
-            <Text style={styles.continueText}>Ready to Test</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      {/* Confirmation Modal */}
+        </KeyboardAwareScrollView>
+      </TouchableWithoutFeedback>
+      {/* Confirmation Modal - outside KeyboardAvoidingView */}
       <Modal visible={showConfirmModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -254,5 +281,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 16,
+  },
+  customQuestionInput: {
+    borderWidth: 1,
+    borderColor: '#bbb',
+    borderRadius: 8,
+    padding: 10,
+    minHeight: 48,
+    marginTop: 8,
+    marginBottom: 8,
+    width: 260,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  scrollContainer: {
+    flexGrow: 1,
   },
 }); 

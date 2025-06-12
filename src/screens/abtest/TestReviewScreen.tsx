@@ -9,21 +9,31 @@ export default function TestReviewScreen() {
   const [customQuestion, setCustomQuestion] = useState('');
 
   // For demo, just highlight selected photos/prompts as changed
-  const newPhotos = mockProfile.photos.map((photo: any) => ({
+  const newPhotos = mockProfile?.photos?.map((photo: any) => ({
     ...photo,
     changed: selectedPhotos?.includes(photo.id),
-  }));
-  const newPrompts = mockProfile.prompts.map((prompt: any) => ({
+  })) || [];
+  const newPrompts = mockProfile?.prompts?.map((prompt: any) => ({
     ...prompt,
     changed: selectedPrompts?.includes(prompt.id),
-  }));
+  })) || [];
 
   const changeCount = (selectedPhotos?.length || 0) + (selectedPrompts?.length || 0);
 
   const handleStartTest = () => {
-    if (onTestComplete) onTestComplete();
-    navigation.goBack(); // Go back to profile
+    if (onTestComplete) {
+      onTestComplete();
+    }
+    navigation.goBack();
   };
+
+  if (!mockProfile) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>Error: No profile data available</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

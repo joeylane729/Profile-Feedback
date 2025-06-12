@@ -409,18 +409,18 @@ const FeedbackScreen = () => {
                 <View key={prompt.id} style={styles.photoCard}>
                   <View style={styles.promptHeader}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ 
-                        fontSize: 15, 
-                        fontWeight: '600', 
-                        color: '#333', 
-                        marginBottom: 6
-                      }}>Q: {prompt.question}</Text>
-                      <Text style={{ 
-                        fontSize: 14, 
-                        color: '#444', 
-                        lineHeight: 20
-                      }}>A: {prompt.response}</Text>
-                    </View>
+                    <Text style={{ 
+                      fontSize: 15, 
+                      fontWeight: '600', 
+                      color: '#333', 
+                      marginBottom: 6
+                    }}>Q: {prompt.question}</Text>
+                    <Text style={{ 
+                      fontSize: 14, 
+                      color: '#444', 
+                      lineHeight: 20
+                    }}>A: {prompt.response}</Text>
+                  </View>
                     <TouchableOpacity>
                       <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
                     </TouchableOpacity>

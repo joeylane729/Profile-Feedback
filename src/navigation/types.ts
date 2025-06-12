@@ -7,6 +7,7 @@ export type RootStackParamList = {
     onTestComplete?: () => void;
     preselectedPhoto?: string;
     preselectedPrompt?: string;
+    customQuestion?: string;
   };
   TestReviewScreen: {
     selectedPhotos: string[];
@@ -17,6 +18,7 @@ export type RootStackParamList = {
     onTestComplete?: () => void;
     photoReplacements?: { [id: string]: string };
     promptReplacements?: { [id: string]: string };
+    customQuestion?: string;
   };
 };
 

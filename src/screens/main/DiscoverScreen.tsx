@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager, ViewStyle } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { colors } from '../../config/theme';
@@ -91,6 +91,8 @@ const LIKE_OPTIONS = [
   { label: 'Definitely', value: 4 },
 ];
 
+const REQUIRED_CREDITS = 10;
+
 const DiscoverScreen = () => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
@@ -118,6 +120,7 @@ const DiscoverScreen = () => {
   const neutralButtonAnim = useRef(new Animated.Value(0)).current;
   const keepButtonAnim = useRef(new Animated.Value(0)).current;
   const [questionTextHeight, setQuestionTextHeight] = useState(40); // default guess
+  const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
 
   const profile = DUMMY_REVIEWS[profileIndex];
 
@@ -404,6 +407,24 @@ const DiscoverScreen = () => {
 
   console.log('DiscoverScreen render', { profileIndex, profile, isProfile });
 
+  // Credits progress header (copied from ProfileScreen)
+  const renderHeader = () => {
+    const progress = Math.min(credits / REQUIRED_CREDITS, 1);
+    const hasEnough = credits >= REQUIRED_CREDITS;
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
+        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Discover</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8, minWidth: 80 }}>
+          <FontAwesome5 name="coins" size={18} color="#444" style={{ marginRight: 4 }} />
+          <Text style={{ fontSize: 15, fontWeight: '400', marginLeft: 4, marginRight: 6, color: '#222' }}>{credits}/{REQUIRED_CREDITS}</Text>
+          <View style={{ width: 56, height: 6, backgroundColor: '#e0e0e0', borderRadius: 3, overflow: 'hidden' }}>
+            <View style={{ height: '100%', borderRadius: 3, width: `${progress * 100}%`, backgroundColor: hasEnough ? '#333' : '#bbb' }} />
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   if (!profile) {
     console.log('No profile at index', profileIndex);
     return (
@@ -456,6 +477,7 @@ const DiscoverScreen = () => {
     };
     return (
       <SafeAreaView style={styles.safeArea}>
+        {renderHeader()}
         <Animated.View key={profileIndex} style={[styles.container, { justifyContent: 'flex-start', alignItems: 'center', opacity: animOpacity }]}> 
           <View style={{ alignItems: 'center', marginTop: 36, marginBottom: 0, flexDirection: 'row', justifyContent: 'center' }}>
             <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#222' }}>{profile.context.split(',')[0]}</Text>
@@ -506,9 +528,10 @@ const DiscoverScreen = () => {
   return (
     <>
       <SafeAreaView style={styles.safeArea}>
+        {renderHeader()}
         <Animated.View style={[styles.container, { opacity: profileOpacity }]}>
           {/* Profile Name and Age */}
-          <View style={{ alignItems: 'center', marginTop: 36, marginBottom: 0, flexDirection: 'row', justifyContent: 'center' }}>
+          <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 0, flexDirection: 'row', justifyContent: 'center' }}>
             <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#222' }}>{profile.name}</Text>
             <Text style={{ fontSize: 24, color: '#222', marginLeft: 10, fontWeight: 'normal' }}>{profile.age}</Text>
           </View>
@@ -1178,7 +1201,7 @@ const styles = StyleSheet.create({
   backButtonAbovePhoto: {
     position: 'absolute',
     left: 20,
-    top: 80, // adjust as needed to sit just above the photo
+    top: 32,
     backgroundColor: '#fff',
     borderRadius: 14,
     padding: 2,
