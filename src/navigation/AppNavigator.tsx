@@ -16,6 +16,7 @@ import ProfileScreen from '../screens/main/ProfileScreen';
 import DiscoverScreen from '../screens/main/DiscoverScreen';
 import TestSetupScreen from '../screens/abtest/TestSetupScreen';
 import TestReviewScreen from '../screens/abtest/TestReviewScreen';
+import ProfileTestSetupScreen from '../screens/abtest/ProfileTestSetupScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -88,6 +89,7 @@ const AppNavigator = () => {
             <Stack.Screen name="Main" component={MainTabNavigator} />
             <Stack.Screen name="TestSetupScreen" component={TestSetupScreen} />
             <Stack.Screen name="TestReviewScreen" component={TestReviewScreen} />
+            <Stack.Screen name="ProfileTestSetupScreen" component={ProfileTestSetupScreen} />
           </Stack.Navigator>
         )}
       </NavigationContainer>

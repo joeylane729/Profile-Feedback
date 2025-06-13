@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, TextInput, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
@@ -77,6 +77,13 @@ export default function TestSetupScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Test a Photo Change</Text>
+        <View style={styles.backButton} />
+      </View>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <KeyboardAwareScrollView
           contentContainerStyle={styles.scrollContainer}
@@ -85,7 +92,6 @@ export default function TestSetupScreen({ navigation, route }: any) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.container}>
-            <Text style={styles.header}>Test a Photo Change</Text>
             <Text style={styles.label}>Current Photo</Text>
             <View style={styles.photoWrapper}>
               <Image source={{ uri: selectedPhoto.uri }} style={styles.photo} />
@@ -165,7 +171,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   container: { flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'flex-start', padding: 24 },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, marginTop: 12 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   label: { fontSize: 16, fontWeight: '600', marginTop: 18, marginBottom: 8 },
   photoWrapper: {
     marginTop: 18,

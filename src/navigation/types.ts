@@ -9,6 +9,7 @@ export type RootStackParamList = {
     preselectedPrompt?: string;
     customQuestion?: string;
   };
+  ProfileTestSetupScreen: undefined;
   TestReviewScreen: {
     selectedPhotos: string[];
     selectedPrompts: string[];
@@ -30,5 +31,12 @@ export type AuthStackParamList = {
 export type MainTabParamList = {
   Discover: undefined;
   Feedback: undefined;
-  Profile: undefined;
+  Profile: {
+    triggerTest?: boolean;
+    testFilters?: {
+      gender: string[];
+      age: string[];
+    };
+    customQuestion?: string;
+  };
 }; 

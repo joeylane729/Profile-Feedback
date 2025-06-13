@@ -14,6 +14,9 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../config/theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/types';
 
 type PhotoFeedback = {
   comment: string;
@@ -36,6 +39,7 @@ type Photo = {
   breakdown: PhotoBreakdown;
   feedback: PhotoFeedback[];
   ratings?: { keep: number; neutral: number; remove: number };
+  liked?: boolean;
 };
 
 // Dummy data - in a real app, this would come from your backend
@@ -46,15 +50,32 @@ const DUMMY_FEEDBACK = {
       id: '1', 
       uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60', 
       ratings: { keep: 18, neutral: 12, remove: 2 },
+      liked: true
     },
     { 
       id: '2', 
       uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60', 
       ratings: { keep: 10, neutral: 20, remove: 5 },
+      liked: false
     },
-    { id: '3', uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=60', ratings: { keep: 5, neutral: 10, remove: 10 } },
-    { id: '4', uri: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=60', ratings: { keep: 2, neutral: 8, remove: 15 } },
-    { id: '5', uri: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&auto=format&fit=crop&q=60', ratings: { keep: 15, neutral: 5, remove: 1 } },
+    { 
+      id: '3', 
+      uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=60', 
+      ratings: { keep: 5, neutral: 10, remove: 10 },
+      liked: true
+    },
+    { 
+      id: '4', 
+      uri: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=60', 
+      ratings: { keep: 2, neutral: 8, remove: 15 },
+      liked: false
+    },
+    { 
+      id: '5', 
+      uri: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&auto=format&fit=crop&q=60', 
+      ratings: { keep: 15, neutral: 5, remove: 1 },
+      liked: true
+    },
   ] as Photo[],
   bio: {
     rating: 4.4,
@@ -292,10 +313,16 @@ const PhotoBarChart = ({ keep, neutral, remove, style }: { keep: number; neutral
 const FeedbackScreen = () => {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [activeTab, setActiveTab] = useState<'photos' | 'prompts'>('photos');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filters, setFilters] = useState({
+    sortDirection: 'decreasing', // 'increasing' | 'decreasing'
+    showOnlyLiked: false,
+  });
   const translateX = useRef(new Animated.Value(0)).current;
   const { width } = Dimensions.get('window');
   const gestureStartTab = useRef<'photos' | 'prompts'>(activeTab);
   const isSwiping = useRef(false);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // Calculate score for each photo and sort
   const sortedPhotos = DUMMY_FEEDBACK.photos
@@ -360,14 +387,117 @@ const FeedbackScreen = () => {
     }).start();
   }, [activeTab, width]);
 
+  const handleTestPress = (photoId: string) => {
+    navigation.navigate('TestSetupScreen', {
+      preselectedPhoto: photoId
+    });
+  };
+
+  const getFilteredPhotos = () => {
+    return sortedPhotos
+      .filter(photo => !filters.showOnlyLiked || photo.liked)
+      .sort((a, b) => {
+        const scoreA = (a.ratings?.keep || 0) - (a.ratings?.remove || 0);
+        const scoreB = (b.ratings?.keep || 0) - (b.ratings?.remove || 0);
+        
+        return filters.sortDirection === 'increasing' 
+          ? scoreA - scoreB 
+          : scoreB - scoreA;
+      });
+  };
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <Text style={styles.title}>Feedback</Text>
+      <TouchableOpacity 
+        onPress={() => setShowFilterModal(true)}
+        style={styles.filterButton}
+      >
+        <Ionicons name="filter" size={24} color="#333" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderFilterModal = () => (
+    <Modal
+      visible={showFilterModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.filterModal}>
+          <View style={styles.filterHeader}>
+            <Text style={styles.filterTitle}>Filter Results</Text>
+            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Sort By</Text>
+            <View style={styles.filterOptions}>
+              <TouchableOpacity 
+                style={[styles.filterOption, filters.sortDirection === 'decreasing' && styles.filterOptionActive]}
+                onPress={() => setFilters(prev => ({ ...prev, sortDirection: 'decreasing' }))}
+              >
+                <Text style={[styles.filterOptionText, filters.sortDirection === 'decreasing' && styles.filterOptionTextActive]}>
+                  Score ↓
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.filterOption, filters.sortDirection === 'increasing' && styles.filterOptionActive]}
+                onPress={() => setFilters(prev => ({ ...prev, sortDirection: 'increasing' }))}
+              >
+                <Text style={[styles.filterOptionText, filters.sortDirection === 'increasing' && styles.filterOptionTextActive]}>
+                  Score ↑
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Show</Text>
+            <View style={styles.filterOptions}>
+              <TouchableOpacity 
+                style={[styles.filterOption, !filters.showOnlyLiked && styles.filterOptionActive]}
+                onPress={() => setFilters(prev => ({ ...prev, showOnlyLiked: false }))}
+              >
+                <Text style={[styles.filterOptionText, !filters.showOnlyLiked && styles.filterOptionTextActive]}>
+                  All Photos
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.filterOption, filters.showOnlyLiked && styles.filterOptionActive]}
+                onPress={() => setFilters(prev => ({ ...prev, showOnlyLiked: true }))}
+              >
+                <Text style={[styles.filterOptionText, filters.showOnlyLiked && styles.filterOptionTextActive]}>
+                  Liked Only
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.applyButton}
+            onPress={() => setShowFilterModal(false)}
+          >
+            <Text style={styles.applyButtonText}>Apply Filters</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const renderContent = () => {
     if (activeTab === 'photos') {
+      const filteredPhotos = getFilteredPhotos();
       return (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
             <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
             <View style={styles.photoList}>
-              {sortedPhotos.map((photo, index) => {
+              {filteredPhotos.map((photo, index) => {
                 const keeps = photo.ratings?.keep || 0;
                 const neutrals = photo.ratings?.neutral || 0;
                 const removes = photo.ratings?.remove || 0;
@@ -377,8 +507,11 @@ const FeedbackScreen = () => {
                       <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
                       <View style={styles.photoBarChartCol}>
                         <View style={styles.menuRow}>
-                          <TouchableOpacity>
-                            <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
+                          <TouchableOpacity 
+                            onPress={() => handleTestPress(photo.id)}
+                            style={styles.testButton}
+                          >
+                            <MaterialCommunityIcons name="flask-outline" size={24} color="#2563eb" />
                           </TouchableOpacity>
                         </View>
                         <View style={styles.scoreRow}>
@@ -421,8 +554,11 @@ const FeedbackScreen = () => {
                       lineHeight: 20
                     }}>A: {prompt.response}</Text>
                   </View>
-                    <TouchableOpacity>
-                      <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
+                    <TouchableOpacity 
+                      onPress={() => handleTestPress(prompt.id)}
+                      style={styles.testButton}
+                    >
+                      <MaterialCommunityIcons name="flask-outline" size={24} color="#2563eb" />
                     </TouchableOpacity>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 28, marginTop: 12 }}>
@@ -444,9 +580,7 @@ const FeedbackScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Feedback</Text>
-        </View>
+        {renderHeader()}
         <View style={styles.tabBar}>
           <TouchableOpacity onPress={() => setActiveTab('photos')} style={[styles.tabItem, activeTab === 'photos' && styles.activeTabItem]}>
             <Text style={[styles.tabText, activeTab === 'photos' && styles.activeTabText]}>Photos</Text>
@@ -472,6 +606,7 @@ const FeedbackScreen = () => {
             </View>
           </Animated.View>
         </View>
+        {renderFilterModal()}
         <PhotoFeedbackModal 
           photo={selectedPhoto} 
           visible={!!selectedPhoto} 
@@ -498,6 +633,9 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
@@ -771,6 +909,108 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: 12,
     marginBottom: 0,
+  },
+  testButton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  filterButton: {
+    padding: 8,
+  },
+  filterModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '90%',
+    maxWidth: 400,
+    padding: 24,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  filterTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterOption: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  filterOptionActive: {
+    backgroundColor: '#222',
+    borderColor: '#222',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  filterOptionTextActive: {
+    color: '#fff',
+  },
+  scoreFilter: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  scoreOption: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  scoreOptionActive: {
+    backgroundColor: '#222',
+    borderColor: '#222',
+  },
+  scoreOptionText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  scoreOptionTextActive: {
+    color: '#fff',
+  },
+  applyButton: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  applyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

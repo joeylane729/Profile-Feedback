@@ -23,6 +23,7 @@ import {
   Platform,
   ActionSheetIOS,
   TextInput,
+  Modal,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Fontisto } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -100,6 +101,8 @@ const ProfileScreen = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [showNewTestModal, setShowNewTestModal] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -201,31 +204,8 @@ const ProfileScreen = () => {
     }
   };
 
-  // Helper to group photos into columns of 2
-  const groupPhotosInColumns = (photos: { id: string; uri: string }[]) => {
-    const columns: { id: string; uri: string }[][] = [];
-    for (let i = 0; i < photos.length; i += 2) {
-      columns.push(photos.slice(i, i + 2));
-    }
-    return columns;
-  };
-
   const handleStartTesting = () => {
-    Alert.alert(
-      'Start Testing',
-      'Are you sure you want to start testing? Your profile will be locked until the test is complete.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Start Testing',
-          style: 'default',
-          onPress: startTestLogic,
-        },
-      ],
-    );
+    navigation.navigate('ProfileTestSetupScreen');
   };
 
   const startTestLogic = () => {
@@ -239,7 +219,7 @@ const ProfileScreen = () => {
   };
 
   const handleNewTest = () => {
-    navigation.navigate('TestSetupScreen', { onTestComplete: startTestLogic });
+    navigation.navigate('ProfileTestSetupScreen');
   };
 
   const handleViewResults = () => {
@@ -431,7 +411,7 @@ const ProfileScreen = () => {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.statusButton, styles.newTestButton, !hasEnough ? styles.disabledButton : null]} 
-                onPress={hasEnough ? handleNewTest : handleDisabledNewTest}
+                onPress={hasEnough ? () => setShowNewTestModal(true) : handleDisabledNewTest}
               >
                 <Ionicons name="refresh-outline" size={20} color={hasEnough ? '#222' : '#777'} />
                 <Text style={[styles.statusButtonText, !hasEnough ? styles.disabledButtonText : null]}>New Test</Text>
@@ -451,6 +431,87 @@ const ProfileScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       {renderHeader()}
+      <Modal
+        visible={selectMode}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectMode(false)}
+      >
+        <View style={styles.selectModalOverlay}>
+          <View style={styles.selectModalCard}>
+            <View style={styles.selectModalHeaderRow}>
+              <Text style={styles.selectModalTitle}>Swap a Photo</Text>
+              <TouchableOpacity style={styles.selectModeCancel} onPress={() => setSelectMode(false)}>
+                <Ionicons name="close" size={24} color="#222" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.selectModalSubtitle}>
+              Choose a photo you want to test swapping out. You'll be able to compare it with a new photo to see which one reviewers like better.
+            </Text>
+            <FlatList
+              data={data.photos}
+              keyExtractor={item => item.id}
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.selectModalGrid}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.photoContainer, styles.photoSelectable, styles.photoPop, { marginRight: 12 }]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectMode(false);
+                    navigation.navigate('TestSetupScreen', { preselectedPhoto: item.id });
+                  }}
+                >
+                  <Image source={{ uri: item.uri }} style={styles.photo} />
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={showNewTestModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNewTestModal(false)}
+      >
+        <View style={styles.selectModalOverlay}>
+          <View style={styles.selectModalCard}>
+            <View style={styles.selectModalHeaderRow}>
+              <Text style={styles.selectModalTitle}>Start a New Test</Text>
+              <TouchableOpacity style={styles.selectModeCancel} onPress={() => setShowNewTestModal(false)}>
+                <Ionicons name="close" size={24} color="#222" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.selectModalSubtitle}>What would you like to test?</Text>
+            <TouchableOpacity
+              style={styles.newTestOptionButton}
+              onPress={() => {
+                setShowNewTestModal(false);
+                navigation.navigate('ProfileTestSetupScreen');
+              }}
+            >
+              <Text style={styles.newTestOptionText}>Test entire profile again</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.newTestOptionButton}
+              onPress={() => {
+                setShowNewTestModal(false);
+                setTimeout(() => setSelectMode(true), 250);
+              }}
+            >
+              <Text style={styles.newTestOptionText}>Test a new photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.newTestOptionButton}
+              onPress={() => {}}
+            >
+              <Text style={styles.newTestOptionText}>Test a new prompt</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <KeyboardAwareScrollView style={{ flex: 1 }}>
         {/* Blank state if no profile and not creating */}
         {!hasProfile && (
@@ -484,46 +545,42 @@ const ProfileScreen = () => {
             <View style={styles.section}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={styles.sectionTitle}>Photos</Text>
-                {data.status === 'not_tested' && (
-                  <TouchableOpacity onPress={pickImage} style={{ padding: 4 }}>
-                    <Ionicons name="add-circle-outline" size={24} color="#222" />
-                  </TouchableOpacity>
-                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {data.status === 'not_tested' && (
+                    <TouchableOpacity onPress={pickImage} style={{ padding: 4 }}>
+                      <Ionicons name="add-circle-outline" size={24} color="#222" />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              <FlatList
-                data={groupPhotosInColumns(data.photos)}
-                renderItem={({ item: column }) => (
-                  <View style={styles.photoColumn}>
-                    {column.map((photo, idx) => (
-                      <View key={photo.id} style={{ position: 'relative', marginRight: 8 }}>
-                        <Image source={{ uri: photo.uri }} style={styles.photo} />
-                        {data.status !== 'not_tested' && (
-                          <TouchableOpacity
-                            style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2, opacity: data.status === 'testing' ? 0.4 : 1 }}
-                            onPress={() => navigation.navigate('TestSetupScreen', { preselectedPhoto: photo.id })}
-                            disabled={data.status === 'testing'}
-                          >
-                            <MaterialCommunityIcons name="flask-outline" size={18} color="#2563eb" />
-                          </TouchableOpacity>
-                        )}
-                        {data.status === 'not_tested' && (
-                          <TouchableOpacity
-                            style={{ position: 'absolute', top: 4, left: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2 }}
-                            onPress={() => removePhoto(photo.id)}
-                          >
-                            <Ionicons name="close-circle" size={20} color="#ff3b30" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                )}
-                keyExtractor={(_, idx) => idx.toString()}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.photoGrid}
-                style={{ maxHeight: PHOTO_SIZE * 2 + 24 }}
-              />
+              <View style={styles.photoGrid}>
+                {data.photos.map((photo, idx) => {
+                  const isSelectable = false;
+                  return (
+                    <TouchableOpacity
+                      key={photo.id}
+                      style={[
+                        styles.photoContainer,
+                        (idx + 1) % 3 !== 0 && { marginRight: 8 },
+                        idx < data.photos.length - (data.photos.length % 3 || 3) && { marginBottom: 8 },
+                        isSelectable && styles.photoSelectable,
+                      ]}
+                      activeOpacity={1}
+                      disabled={data.status === 'not_tested'}
+                    >
+                      <Image source={{ uri: photo.uri }} style={styles.photo} />
+                      {data.status === 'not_tested' && (
+                        <TouchableOpacity
+                          style={styles.removeButton}
+                          onPress={() => removePhoto(photo.id)}
+                        >
+                          <Ionicons name="close-circle" size={24} color="#ff3b30" />
+                        </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
             <View style={styles.section}>
@@ -576,15 +633,6 @@ const ProfileScreen = () => {
                     ) : (
                       <Text style={styles.promptAnswer}>{prompt.answer}</Text>
                     )}
-                    {data.status !== 'not_tested' && (
-                      <TouchableOpacity
-                        style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#fff', borderRadius: 12, padding: 2, elevation: 2, opacity: data.status === 'testing' ? 0.4 : 1 }}
-                        onPress={() => navigation.navigate('TestSetupScreen', { preselectedPrompt: prompt.id })}
-                        disabled={data.status === 'testing'}
-                      >
-                        <MaterialCommunityIcons name="flask-outline" size={18} color="#2563eb" />
-                      </TouchableOpacity>
-                    )}
                   </View>
                 </View>
               ))}
@@ -634,18 +682,15 @@ const styles = StyleSheet.create({
   },
   photoGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'flex-start',
-    paddingVertical: 4,
+    paddingVertical: 16,
     paddingHorizontal: 0,
   },
-  photoColumn: {
-    flexDirection: 'column',
-    marginHorizontal: 4,
-  },
   photoContainer: {
-    marginVertical: 4,
-    marginHorizontal: 0,
     position: 'relative',
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
   },
   photo: {
     width: PHOTO_SIZE,
@@ -829,6 +874,113 @@ const styles = StyleSheet.create({
     backgroundColor: '#222',
     borderWidth: 1,
     borderColor: '#ccc',
+  },
+  removeButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  selectModeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  selectModeText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2563eb',
+  },
+  selectModeCancel: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+  },
+  photoSelectable: {
+    borderWidth: 2,
+    borderColor: '#2563eb',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  selectModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectModalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  selectModalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 8,
+  },
+  selectModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#222',
+    flex: 1,
+    textAlign: 'center',
+  },
+  selectModalSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 18,
+    marginHorizontal: 4,
+    lineHeight: 20,
+  },
+  selectModalGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  photoGridAbsolute: {
+    position: 'absolute',
+    top: 140,
+    left: 0,
+    right: 0,
+    zIndex: 25,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+  },
+  photoPop: {
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  newTestOptionButton: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginVertical: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  newTestOptionText: {
+    fontSize: 16,
+    color: '#222',
+    fontWeight: '600',
   },
 });
 

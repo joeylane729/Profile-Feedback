@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager, ViewStyle, Modal } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { colors } from '../../config/theme';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
 
 const { width, height } = Dimensions.get('window');
 const PHOTO_CAROUSEL_HEIGHT = height;
@@ -106,6 +107,12 @@ const DiscoverScreen = () => {
   const [promptFeedback, setPromptFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral'}>({});
   const [activePromptFeedback, setActivePromptFeedback] = useState<{[key: string]: 'keep' | 'remove' | 'neutral' | null}>({});
   const [selected, setSelected] = useState<null | 'left' | 'right'>(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({
+    gender: ['all'],
+    age: [],
+  });
+  const [ageRange, setAgeRange] = useState([18, 35]);
   const animOpacity = useRef(new Animated.Value(1)).current;
   const flatListRef = useRef<FlatList>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -245,6 +252,9 @@ const DiscoverScreen = () => {
       duration: 250,
       useNativeDriver: true,
     }).start(() => {
+      // Increment credits first
+      setCredits(prev => prev + 1);
+      
       setProfileIndex((prev) => (prev + 1) % DUMMY_REVIEWS.length);
       setActivePhoto(0);
       setIsProfileExpanded(false);
@@ -259,6 +269,7 @@ const DiscoverScreen = () => {
       activePhotoAnim.setValue(0);
       flatListRef.current?.scrollToIndex({ index: 0, animated: false });
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      
       // Fade in
       Animated.timing(profileOpacity, {
         toValue: 1,
@@ -383,7 +394,6 @@ const DiscoverScreen = () => {
   // Sync progressAnim with initial progress on mount and when profile changes
   useEffect(() => {
     animateProgress(progress);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileIndex]);
 
   // Add this helper function to check if all prompts have feedback
@@ -402,10 +412,7 @@ const DiscoverScreen = () => {
     setIsProfileExpanded(false);
     setActivePhoto(0);
     setSelected(null);
-    console.log('profileIndex changed, animated profileOpacity to 1, cleared selected, collapsed profile, reset activePhoto');
   }, [profileIndex]);
-
-  console.log('DiscoverScreen render', { profileIndex, profile, isProfile });
 
   // Credits progress header (copied from ProfileScreen)
   const renderHeader = () => {
@@ -414,19 +421,173 @@ const DiscoverScreen = () => {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
         <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Discover</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8, minWidth: 80 }}>
-          <FontAwesome5 name="coins" size={18} color="#444" style={{ marginRight: 4 }} />
-          <Text style={{ fontSize: 15, fontWeight: '400', marginLeft: 4, marginRight: 6, color: '#222' }}>{credits}/{REQUIRED_CREDITS}</Text>
-          <View style={{ width: 56, height: 6, backgroundColor: '#e0e0e0', borderRadius: 3, overflow: 'hidden' }}>
-            <View style={{ height: '100%', borderRadius: 3, width: `${progress * 100}%`, backgroundColor: hasEnough ? '#333' : '#bbb' }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity 
+            onPress={() => setShowFilterModal(true)}
+            style={{ marginRight: 16 }}
+          >
+            <Ionicons name="filter" size={24} color="#333" />
+          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8, minWidth: 80 }}>
+            <FontAwesome5 name="coins" size={18} color="#444" style={{ marginRight: 4 }} />
+            <Text style={{ fontSize: 15, fontWeight: '400', marginLeft: 4, marginRight: 6, color: '#222' }}>{credits}/{REQUIRED_CREDITS}</Text>
+            <View style={{ width: 56, height: 6, backgroundColor: '#e0e0e0', borderRadius: 3, overflow: 'hidden' }}>
+              <View style={{ height: '100%', borderRadius: 3, width: `${progress * 100}%`, backgroundColor: hasEnough ? '#333' : '#bbb' }} />
+            </View>
           </View>
         </View>
       </View>
     );
   };
 
+  const handleFilterSelect = (sectionId: string, optionId: string) => {
+    setSelectedFilters(prev => {
+      const currentSelections = prev[sectionId] || [];
+      
+      if (sectionId === 'gender') {
+        if (optionId === 'all') {
+          // If 'all' is selected, only keep 'all'
+          return { ...prev, [sectionId]: ['all'] };
+        } else {
+          // If selecting individual options
+          let newSelections = currentSelections.includes(optionId)
+            ? currentSelections.filter(id => id !== optionId)
+            : [...currentSelections.filter(id => id !== 'all'), optionId];
+          
+          // If this would be the third selection, switch to 'all' only
+          if (newSelections.length === 3) {
+            return { ...prev, [sectionId]: ['all'] };
+          }
+          
+          // If 'all' was selected, start fresh with just this option
+          if (currentSelections.includes('all')) {
+            return { ...prev, [sectionId]: [optionId] };
+          }
+          
+          // If no options are selected, default to 'all'
+          if (newSelections.length === 0) {
+            return { ...prev, [sectionId]: ['all'] };
+          }
+          
+          return { ...prev, [sectionId]: newSelections };
+        }
+      }
+      
+      return prev;
+    });
+  };
+
+  const handleAgeRangeChange = (values: number[]) => {
+    const [min, max] = values;
+    // Ensure minimum range of 5 years
+    if (max - min < 5) {
+      if (min === ageRange[0]) {
+        setAgeRange([min, min + 5]);
+      } else {
+        setAgeRange([max - 5, max]);
+      }
+    } else {
+      setAgeRange([min, max]);
+    }
+  };
+
+  const renderFilterModal = () => (
+    <Modal
+      visible={showFilterModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.filterModal}>
+          <View style={styles.filterHeader}>
+            <Text style={styles.filterTitle}>Filters</Text>
+            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Gender Filter */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Gender</Text>
+            <View style={styles.filterOptions}>
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'men', label: 'Men' },
+                { id: 'women', label: 'Women' },
+                { id: 'non-binary', label: 'Non-binary' },
+              ].map(option => {
+                const isSelected = selectedFilters.gender?.includes(option.id);
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.filterOption,
+                      isSelected && styles.filterOptionActive
+                    ]}
+                    onPress={() => handleFilterSelect('gender', option.id)}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      isSelected && styles.filterOptionTextActive
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Age Range Filter */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Age Range</Text>
+            <View style={styles.sliderContainer}>
+              <MultiSlider
+                values={ageRange}
+                sliderLength={280}
+                onValuesChange={handleAgeRangeChange}
+                min={18}
+                max={65}
+                step={1}
+                allowOverlap={false}
+                snapped
+                minMarkerOverlapDistance={35}
+                selectedStyle={{
+                  backgroundColor: '#222',
+                }}
+                unselectedStyle={{
+                  backgroundColor: '#ddd',
+                }}
+                containerStyle={{
+                  height: 40,
+                }}
+                trackStyle={{
+                  height: 4,
+                  backgroundColor: '#ddd',
+                }}
+                customMarker={(e) => (
+                  <View style={[styles.markerContainer, { transform: [{ translateY: -12 }] }]}>
+                    <Text style={styles.markerValue}>{e.currentValue}</Text>
+                    <View style={styles.marker} />
+                  </View>
+                )}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.applyButton}
+            onPress={() => setShowFilterModal(false)}
+          >
+            <Text style={styles.applyButtonText}>Apply Filters</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   if (!profile) {
-    console.log('No profile at index', profileIndex);
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
@@ -437,9 +598,7 @@ const DiscoverScreen = () => {
   }
 
   if (!isProfile) {
-    console.log('Rendering comparison review', profile, { profileIndex, selected });
     if (!profile.left || !profile.right) {
-      console.log('Comparison data missing', profile);
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
@@ -448,7 +607,6 @@ const DiscoverScreen = () => {
         </SafeAreaView>
       );
     }
-    console.log('Rendering Animated.View for comparison review', { profileIndex, selected });
     const VERTICAL_MARGIN = 16; // margin between photos
     const OUTER_MARGIN = 24; // margin above first and below last photo
     const HEADER_HEIGHT = 80; // estimate for name/age/location section
@@ -457,7 +615,6 @@ const DiscoverScreen = () => {
     const maxSquareWidth = width - 32; // 16px horizontal padding on each side
     const SQUARE_SIZE = Math.floor(Math.min(maxSquareHeight, maxSquareWidth));
     const handleSelect = (side: 'left' | 'right') => {
-      console.log('handleSelect called with side:', side);
       setSelected(side);
       Animated.timing(animOpacity, {
         toValue: 0,
@@ -466,9 +623,10 @@ const DiscoverScreen = () => {
       }).start(() => {
         // Fade in new profile smoothly
         profileOpacity.setValue(0);
+        // Increment credits
+        setCredits(prev => prev + 1);
         setProfileIndex((prev) => {
           const nextIndex = (prev + 1) % DUMMY_REVIEWS.length;
-          console.log('setProfileIndex called. Advancing to index:', nextIndex);
           return nextIndex;
         });
         setSelected(null);
@@ -516,7 +674,6 @@ const DiscoverScreen = () => {
     );
   }
 
-  console.log('Rendering profile review', { profileIndex, selected, isProfile, profile });
   const translateY = Animated.add(
     pan,
     expandAnimation.interpolate({
@@ -529,6 +686,7 @@ const DiscoverScreen = () => {
     <>
       <SafeAreaView style={styles.safeArea}>
         {renderHeader()}
+        {renderFilterModal()}
         <Animated.View style={[styles.container, { opacity: profileOpacity }]}>
           {/* Profile Name and Age */}
           <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 0, flexDirection: 'row', justifyContent: 'center' }}>
@@ -1253,6 +1411,97 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '90%',
+    maxWidth: 400,
+    padding: 24,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  filterTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    minWidth: 100,
+  },
+  filterOptionActive: {
+    backgroundColor: '#222',
+    borderColor: '#222',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  filterOptionTextActive: {
+    color: '#fff',
+  },
+  applyButton: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  applyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sliderContainer: {
+    paddingHorizontal: 8,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  markerContainer: {
+    alignItems: 'center',
+  },
+  markerValue: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  marker: {
+    height: 24,
+    width: 24,
+    backgroundColor: '#222',
+    borderRadius: 12,
   },
 });
 
