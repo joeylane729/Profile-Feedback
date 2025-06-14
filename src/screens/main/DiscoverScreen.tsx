@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager, ViewStyle, Modal } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager, ViewStyle, Modal, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -34,6 +34,10 @@ const DUMMY_REVIEWS = [
       { id: '1', question: "I'm looking for", answer: "Someone who can make me laugh and isn't afraid to be themselves." },
       { id: '2', question: "My ideal first date", answer: "Coffee and a walk in the park, followed by a visit to a local art gallery or museum." },
     ],
+    reviewerQuestion: {
+      type: 'open',
+      question: 'What is your first impression of Samantha?'
+    },
   },
   {
     type: 'comparison',
@@ -62,6 +66,11 @@ const DUMMY_REVIEWS = [
       { id: '1', question: "A fact about me", answer: "I once biked across the country." },
       { id: '2', question: "Favorite food", answer: "Sushi and tacos!" },
     ],
+    reviewerQuestion: {
+      type: 'mc',
+      question: 'Which of these best describes Alex?',
+      options: ['Adventurous', 'Intellectual', 'Funny', 'Chill']
+    },
   },
   {
     type: 'profile',
@@ -128,6 +137,8 @@ const DiscoverScreen = () => {
   const keepButtonAnim = useRef(new Animated.Value(0)).current;
   const [questionTextHeight, setQuestionTextHeight] = useState(40); // default guess
   const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
+  const [reviewerAnswer, setReviewerAnswer] = useState<string>('');
+  const [reviewerMCAnswer, setReviewerMCAnswer] = useState<number | null>(null);
 
   const profile = DUMMY_REVIEWS[profileIndex];
 
@@ -943,6 +954,53 @@ const DiscoverScreen = () => {
               <View style={styles.fullWidthDivider} />
 
               {/* Likelihood Section */}
+              {profile.reviewerQuestion && (
+                <View style={{ marginBottom: 24 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#222', marginBottom: 8 }}>
+                    {profile.reviewerQuestion.question}
+                  </Text>
+                  {profile.reviewerQuestion.type === 'mc' && profile.reviewerQuestion.options && (
+                    <View style={{ flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+                      {profile.reviewerQuestion.options.map((opt: string, idx: number) => (
+                        <TouchableOpacity
+                          key={idx}
+                          style={{
+                            padding: 12,
+                            backgroundColor: reviewerMCAnswer === idx ? '#222' : '#f5f5f5',
+                            borderRadius: 8,
+                            marginBottom: 6,
+                            borderWidth: reviewerMCAnswer === idx ? 2 : 1,
+                            borderColor: reviewerMCAnswer === idx ? '#222' : '#eee',
+                          }}
+                          onPress={() => setReviewerMCAnswer(idx)}
+                        >
+                          <Text style={{ color: reviewerMCAnswer === idx ? '#fff' : '#222', fontSize: 15 }}>
+                            {String.fromCharCode(65 + idx)}. {opt}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  {profile.reviewerQuestion.type === 'open' && (
+                    <TextInput
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#eee',
+                        borderRadius: 8,
+                        padding: 12,
+                        fontSize: 15,
+                        backgroundColor: '#fafafa',
+                        color: '#222',
+                        minHeight: 48,
+                      }}
+                      placeholder="Type your answer..."
+                      value={reviewerAnswer}
+                      onChangeText={setReviewerAnswer}
+                      multiline
+                    />
+                  )}
+                </View>
+              )}
               <View style={styles.likelihoodSectionCard}>
                 <Text style={styles.likelihoodQuestion}>How likely are you to like this person?</Text>
                 <View style={styles.likelihoodOptions}>
