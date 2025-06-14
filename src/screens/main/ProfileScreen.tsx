@@ -24,6 +24,7 @@ import {
   ActionSheetIOS,
   TextInput,
   Modal,
+  ScrollView,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Fontisto } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -102,6 +103,7 @@ const ProfileScreen = () => {
   const [editingBio, setEditingBio] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
+  const [selectPromptMode, setSelectPromptMode] = useState(false);
   const [showNewTestModal, setShowNewTestModal] = useState(false);
 
   useEffect(() => {
@@ -471,6 +473,42 @@ const ProfileScreen = () => {
         </View>
       </Modal>
       <Modal
+        visible={selectPromptMode}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectPromptMode(false)}
+      >
+        <View style={styles.selectModalOverlay}>
+          <View style={styles.selectModalCard}>
+            <View style={styles.selectModalHeaderRow}>
+              <Text style={styles.selectModalTitle}>Swap a Prompt</Text>
+              <TouchableOpacity style={styles.selectModeCancel} onPress={() => setSelectPromptMode(false)}>
+                <Ionicons name="close" size={24} color="#222" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.selectModalSubtitle}>
+              Choose a prompt you want to test swapping out. You'll be able to compare it with a new answer to see which one reviewers like better.
+            </Text>
+            <ScrollView style={styles.promptList}>
+              {data.prompts.map((prompt) => (
+                <TouchableOpacity
+                  key={prompt.id}
+                  style={styles.promptSelectable}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectPromptMode(false);
+                    navigation.navigate('TestSetupScreen', { preselectedPrompt: prompt.id });
+                  }}
+                >
+                  <Text style={styles.promptSelectableQuestion}>{prompt.question}</Text>
+                  <Text style={styles.promptSelectableAnswer}>{prompt.answer}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      <Modal
         visible={showNewTestModal}
         transparent
         animationType="fade"
@@ -505,7 +543,10 @@ const ProfileScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.newTestOptionButton}
-              onPress={() => {}}
+              onPress={() => {
+                setShowNewTestModal(false);
+                setTimeout(() => setSelectPromptMode(true), 250);
+              }}
             >
               <Text style={styles.newTestOptionText}>Test a new prompt</Text>
             </TouchableOpacity>
@@ -981,6 +1022,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#222',
     fontWeight: '600',
+  },
+  promptList: {
+    maxHeight: 400,
+  },
+  promptSelectable: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  promptSelectableQuestion: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  promptSelectableAnswer: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 20,
   },
 });
 

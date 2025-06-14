@@ -627,9 +627,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     backgroundColor: '#fff',
     marginRight: 8,
+    marginLeft: 1,
   },
   mcRemove: {
-    color: '#dc2626',
+    color: '#222',
     fontSize: 18,
     paddingHorizontal: 6,
     paddingVertical: 2,

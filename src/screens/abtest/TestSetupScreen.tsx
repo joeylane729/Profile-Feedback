@@ -20,18 +20,25 @@ const mockProfile = {
 };
 
 export default function TestSetupScreen({ navigation, route }: any) {
-  // Get the preselected photo id from params
+  // Get the preselected photo or prompt id from params
   const preselectedPhotoId = route?.params?.preselectedPhoto;
-  // Find the photo object
+  const preselectedPromptId = route?.params?.preselectedPrompt;
+  
+  // Find the selected item
   const selectedPhoto = mockProfile.photos.find(p => p.id === preselectedPhotoId);
+  const selectedPrompt = mockProfile.prompts.find(p => p.id === preselectedPromptId);
+  
   const [replacementUri, setReplacementUri] = useState<string | null>(null);
+  const [replacementAnswer, setReplacementAnswer] = useState<string>('');
+  const [replacementQuestion, setReplacementQuestion] = useState<string>('');
   const [isPicking, setIsPicking] = useState(false);
   const [placeholderPressed, setPlaceholderPressed] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const TEST_COST = 5;
   const userCredits = 7; // TODO: Replace with real value or context
-  const [customQuestion, setCustomQuestion] = useState<string>('Which photo do you like better?');
+  const [customQuestion, setCustomQuestion] = useState('');
+  const [useCustomQuestion, setUseCustomQuestion] = useState(false);
 
   const pickReplacementPhoto = async () => {
     setIsPicking(true);
@@ -52,7 +59,9 @@ export default function TestSetupScreen({ navigation, route }: any) {
   };
 
   const handleReadyToTest = () => {
-    if (!replacementUri) return;
+    if (selectedPhoto && !replacementUri) return;
+    if (selectedPrompt && !replacementAnswer) return;
+    if (selectedPrompt && !replacementQuestion) return;
     setShowConfirmModal(true);
     setErrorMsg('');
   };
@@ -63,14 +72,24 @@ export default function TestSetupScreen({ navigation, route }: any) {
       return;
     }
     setShowConfirmModal(false);
-    // Instead of calling onTestComplete directly, navigate to ProfileScreen with a param
-    navigation.navigate('Main', { screen: 'Profile', params: { triggerTest: true, customQuestion } });
+    // Navigate back to Profile screen with triggerTest parameter
+    navigation.navigate('Main', { 
+      screen: 'Profile', 
+      params: { 
+        triggerTest: true, 
+        customQuestion,
+        testType: selectedPhoto ? 'photo' : 'prompt',
+        testId: selectedPhoto ? selectedPhoto.id : selectedPrompt?.id,
+        replacement: selectedPhoto ? replacementUri : replacementAnswer,
+        replacementQuestion: selectedPrompt ? replacementQuestion : undefined
+      }
+    });
   };
 
-  if (!selectedPhoto) {
+  if (!selectedPhoto && !selectedPrompt) {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>No photo selected.</Text>
+        <Text style={styles.header}>No item selected.</Text>
       </View>
     );
   }
@@ -81,7 +100,9 @@ export default function TestSetupScreen({ navigation, route }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Test a Photo Change</Text>
+        <Text style={styles.headerTitle}>
+          {selectedPhoto ? 'Test a Photo Change' : 'Test a Prompt Change'}
+        </Text>
         <View style={styles.backButton} />
       </View>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -92,57 +113,101 @@ export default function TestSetupScreen({ navigation, route }: any) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.container}>
-            <Text style={styles.label}>Current Photo</Text>
-            <View style={styles.photoWrapper}>
-              <Image source={{ uri: selectedPhoto.uri }} style={styles.photo} />
-            </View>
-            <Text style={styles.label}>Replacement Photo</Text>
-            {replacementUri ? (
-              <View style={styles.photoWrapper}>
-                <Image source={{ uri: replacementUri }} style={styles.photo} />
-              </View>
+            {selectedPhoto ? (
+              <>
+                <Text style={styles.label}>Current Photo</Text>
+                <View style={styles.photoWrapper}>
+                  <Image source={{ uri: selectedPhoto.uri }} style={styles.photo} />
+                </View>
+                <Text style={styles.label}>Replacement Photo</Text>
+                {replacementUri ? (
+                  <View style={styles.photoWrapper}>
+                    <Image source={{ uri: replacementUri }} style={styles.photo} />
+                  </View>
+                ) : (
+                  <View style={styles.photoWrapper}>
+                    <TouchableOpacity
+                      style={styles.placeholderCardMatched}
+                      onPress={pickReplacementPhoto}
+                      disabled={isPicking}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.placeholderContentModern}>
+                        <Text style={styles.placeholderTextModern}>Add Replacement Photo</Text>
+                      </View>
+                      <View style={styles.plusCircleBtnTopRight} pointerEvents="none">
+                        <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
             ) : (
-              <View style={styles.photoWrapper}>
+              <>
+                <Text style={styles.label}>Current Prompt</Text>
+                <View style={styles.promptWrapper}>
+                  <Text style={styles.promptQuestion}>{selectedPrompt?.question}</Text>
+                  <Text style={styles.promptAnswer}>{selectedPrompt?.answer}</Text>
+                </View>
+                <Text style={styles.label}>New Prompt</Text>
+                <View style={styles.promptWrapper}>
+                  <TextInput
+                    style={[styles.promptInput, styles.promptQuestionInput]}
+                    placeholder="Enter your new prompt question"
+                    value={replacementQuestion}
+                    onChangeText={setReplacementQuestion}
+                    multiline
+                    numberOfLines={2}
+                    textAlignVertical="top"
+                  />
+                  <TextInput
+                    style={[styles.promptInput, styles.promptAnswerInput]}
+                    placeholder="Enter your new answer"
+                    value={replacementAnswer}
+                    onChangeText={setReplacementAnswer}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </>
+            )}
+            <View style={styles.customQuestionContainer}>
+              <View style={styles.customQuestionHeader}>
+                <Text style={styles.customQuestionLabel}>Custom Question</Text>
                 <TouchableOpacity
-                  style={styles.placeholderCardMatched}
-                  onPress={pickReplacementPhoto}
-                  disabled={isPicking}
-                  activeOpacity={0.85}
+                  style={[styles.toggleButton, useCustomQuestion && styles.toggleButtonActive]}
+                  onPress={() => setUseCustomQuestion(!useCustomQuestion)}
                 >
-                  <View style={styles.placeholderContentModern}>
-                    <Text style={styles.placeholderTextModern}>Add Replacement Photo</Text>
-                  </View>
-                  <View style={styles.plusCircleBtnTopRight} pointerEvents="none">
-                    <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-                  </View>
+                  <View style={[styles.toggleCircle, useCustomQuestion && styles.toggleCircleActive]} />
                 </TouchableOpacity>
               </View>
-            )}
-            {/* Custom Question Input */}
-            <Text style={styles.label}>Optional: Ask Reviewers a Question</Text>
-            <TextInput
-              style={styles.customQuestionInput}
-              placeholder="Which photo do you like better?"
-              value={customQuestion}
-              onChangeText={setCustomQuestion}
-              returnKeyType="done"
-              blurOnSubmit={true}
-              enablesReturnKeyAutomatically={true}
-              onSubmitEditing={() => Keyboard.dismiss()}
-              onBlur={() => Keyboard.dismiss()}
-              multiline={true}
-              numberOfLines={2}
-              textAlignVertical="top"
-            />
-            {replacementUri && (
-              <TouchableOpacity style={styles.continueBtn} onPress={handleReadyToTest}>
-                <Text style={styles.continueText}>Ready to Test</Text>
-              </TouchableOpacity>
-            )}
+              {useCustomQuestion && (
+                <TextInput
+                  style={styles.questionInput}
+                  placeholder={selectedPhoto ? "Which photo do you like better?" : "Which answer do you like better?"}
+                  placeholderTextColor="#999"
+                  value={customQuestion}
+                  onChangeText={setCustomQuestion}
+                  multiline
+                  numberOfLines={2}
+                  textAlignVertical="top"
+                />
+              )}
+            </View>
+            <TouchableOpacity 
+              style={[
+                styles.startButton,
+                ((selectedPhoto && !replacementUri) || (selectedPrompt && (!replacementAnswer || !replacementQuestion))) && styles.startButtonDisabled
+              ]}
+              onPress={handleReadyToTest}
+              disabled={(selectedPhoto && !replacementUri) || (selectedPrompt && (!replacementAnswer || !replacementQuestion))}
+            >
+              <Text style={styles.startButtonText}>Start Test</Text>
+            </TouchableOpacity>
           </View>
         </KeyboardAwareScrollView>
       </TouchableWithoutFeedback>
-      {/* Confirmation Modal - outside KeyboardAvoidingView */}
       <Modal visible={showConfirmModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -150,11 +215,17 @@ export default function TestSetupScreen({ navigation, route }: any) {
             <Text style={styles.modalText}>This test costs <Text style={{fontWeight:'bold'}}>{TEST_COST} credits</Text>.</Text>
             <Text style={styles.modalText}>You have <Text style={{fontWeight:'bold'}}>{userCredits} credits</Text>.</Text>
             {errorMsg ? <Text style={styles.modalError}>{errorMsg}</Text> : null}
-            <View style={{ flexDirection: 'row', marginTop: 18, gap: 12 }}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowConfirmModal(false)}>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn} 
+                onPress={() => setShowConfirmModal(false)}
+              >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalConfirmBtn} onPress={handleConfirmTest}>
+              <TouchableOpacity 
+                style={styles.modalConfirmBtn} 
+                onPress={handleConfirmTest}
+              >
                 <Text style={styles.modalConfirmText}>Confirm</Text>
               </TouchableOpacity>
             </View>
@@ -170,7 +241,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  container: { flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'flex-start', padding: 24 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff', 
+    alignItems: 'center', 
+    justifyContent: 'flex-start', 
+    padding: 24 
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,14 +268,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontSize: 16, fontWeight: '600', marginTop: 18, marginBottom: 8 },
+  label: { 
+    fontSize: 16, 
+    fontWeight: '600', 
+    marginTop: 18, 
+    marginBottom: 8,
+    alignSelf: 'flex-start'
+  },
   photoWrapper: {
     marginTop: 18,
     marginBottom: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photo: { width: 180, height: 180, borderRadius: 12, borderWidth: 2, borderColor: '#eee' },
+  photo: { 
+    width: 180, 
+    height: 180, 
+    borderRadius: 12, 
+    borderWidth: 2, 
+    borderColor: '#eee' 
+  },
+  promptWrapper: {
+    width: '100%',
+    marginTop: 8,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  promptQuestion: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  promptAnswer: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 20,
+  },
+  promptInput: {
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 20,
+    textAlignVertical: 'top',
+    padding: 0,
+  },
+  promptQuestionInput: {
+    minHeight: 24,
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  promptAnswerInput: {
+    minHeight: 24,
+  },
   placeholderCardMatched: {
     width: 180,
     height: 180,
@@ -242,84 +367,131 @@ const styles = StyleSheet.create({
     marginTop: 12,
     letterSpacing: 0.1,
   },
-  addBtn: { backgroundColor: '#2563eb', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 12, width: 200 },
-  addBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  continueBtn: { backgroundColor: '#10b981', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 32, width: 200 },
-  continueText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  questionInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 80,
+    backgroundColor: '#fff',
+    marginTop: 8,
+  },
+  startButton: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 24,
+    width: '100%',
+  },
+  startButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   modalCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 28,
-    minWidth: 260,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 8,
-    elevation: 3,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 10,
-    color: '#111',
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#333',
   },
   modalText: {
     fontSize: 16,
-    color: '#222',
-    marginBottom: 2,
-    textAlign: 'center',
+    color: '#666',
+    marginBottom: 8,
   },
   modalError: {
-    color: '#b91c1c',
-    fontWeight: '600',
+    color: '#dc2626',
+    fontSize: 14,
     marginTop: 8,
-    fontSize: 15,
-    textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 16,
   },
   modalCancelBtn: {
-    backgroundColor: '#eee',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    marginRight: 4,
+    backgroundColor: '#f3f4f6',
   },
   modalCancelText: {
-    color: '#222',
-    fontWeight: '600',
+    color: '#333',
     fontSize: 16,
+    fontWeight: '500',
   },
   modalConfirmBtn: {
-    backgroundColor: '#000',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    marginLeft: 4,
+    backgroundColor: '#222',
   },
   modalConfirmText: {
     color: '#fff',
-    fontWeight: '700',
     fontSize: 16,
-  },
-  customQuestionInput: {
-    borderWidth: 1,
-    borderColor: '#bbb',
-    borderRadius: 8,
-    padding: 10,
-    minHeight: 48,
-    marginTop: 8,
-    marginBottom: 8,
-    width: 260,
-    fontSize: 16,
-    backgroundColor: '#fff',
+    fontWeight: '500',
   },
   scrollContainer: {
     flexGrow: 1,
+  },
+  customQuestionContainer: {
+    width: '100%',
+    marginTop: 24,
+  },
+  customQuestionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  customQuestionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  toggleButton: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#e5e5e5',
+    padding: 2,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#222',
+  },
+  toggleCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  toggleCircleActive: {
+    transform: [{ translateX: 20 }],
   },
 }); 
