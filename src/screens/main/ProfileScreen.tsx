@@ -72,6 +72,8 @@ interface TestStatus {
 const MOCK_TEST_DURATION = 5000;
 
 const REQUIRED_CREDITS = 10;
+const FULL_PROFILE_TEST_COST = 10;
+const SINGLE_ITEM_TEST_COST = 5;
 
 const INITIAL_DATA: ProfileData = {
   photos: [
@@ -257,11 +259,10 @@ const ProfileScreen = () => {
     setShowCreate(false);
   };
 
-  // Handler for disabled new test button
-  const handleDisabledNewTest = () => {
+  const handleDisabledTestOption = (cost: number, type: string) => {
     Alert.alert(
       "Not enough credits",
-      "You don't have enough credits to run another test. Review more profiles to earn more credits."
+      `You need ${cost} credits to test ${type}. Review more profiles to earn more credits.`
     );
   };
 
@@ -321,8 +322,6 @@ const ProfileScreen = () => {
   };
 
   const renderHeader = () => {
-    const progress = Math.min(credits / REQUIRED_CREDITS, 1);
-    const hasEnough = credits >= REQUIRED_CREDITS;
     return (
       <View style={styles.headerRow}>
         <Text style={styles.title}>Profile</Text>
@@ -333,10 +332,7 @@ const ProfileScreen = () => {
             style={styles.creditsInline}
           >
             <FontAwesome5 name="coins" size={18} color="#444" style={{ marginRight: 4 }} />
-            <Text style={styles.creditsInlineText}>{credits}/{REQUIRED_CREDITS}</Text>
-            <View style={styles.creditsInlineBarBg}>
-              <View style={[styles.creditsInlineBarFill, { width: `${progress * 100}%`, backgroundColor: hasEnough ? '#333' : '#bbb' }]} />
-            </View>
+            <Text style={styles.creditsInlineText}>{credits}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={showMenu} style={styles.logoutButton}>
             <Ionicons name="settings-outline" size={26} color="#333" />
@@ -412,14 +408,11 @@ const ProfileScreen = () => {
                 <Text style={styles.statusButtonText}>View Results</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.statusButton, styles.newTestButton, !hasEnough ? styles.disabledButton : null]} 
-                onPress={hasEnough ? () => setShowNewTestModal(true) : handleDisabledNewTest}
+                style={[styles.statusButton, styles.newTestButton]} 
+                onPress={() => setShowNewTestModal(true)}
               >
-                <Ionicons name="refresh-outline" size={20} color={hasEnough ? '#222' : '#777'} />
-                <Text style={[styles.statusButtonText, !hasEnough ? styles.disabledButtonText : null]}>New Test</Text>
-                {!hasEnough && (
-                  <MaterialCommunityIcons name="help-circle-outline" size={18} color="#777" style={{ marginLeft: 4 }} />
-                )}
+                <Ionicons name="refresh-outline" size={20} color="#222" />
+                <Text style={styles.statusButtonText}>New Test</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -522,33 +515,67 @@ const ProfileScreen = () => {
                 <Ionicons name="close" size={24} color="#222" />
               </TouchableOpacity>
             </View>
+            <View style={styles.creditsDisplay}>
+              <FontAwesome5 name="coins" size={16} color="#444" style={{ marginRight: 4 }} />
+              <Text style={styles.creditsText}>{credits} credits available</Text>
+            </View>
             <Text style={styles.selectModalSubtitle}>What would you like to test?</Text>
             <TouchableOpacity
-              style={styles.newTestOptionButton}
+              style={[styles.newTestOptionButton, credits < FULL_PROFILE_TEST_COST && styles.disabledTestOption]}
               onPress={() => {
+                if (credits < FULL_PROFILE_TEST_COST) {
+                  handleDisabledTestOption(FULL_PROFILE_TEST_COST, "your entire profile");
+                  return;
+                }
                 setShowNewTestModal(false);
                 navigation.navigate('ProfileTestSetupScreen');
               }}
             >
-              <Text style={styles.newTestOptionText}>Test entire profile again</Text>
+              <View style={styles.testOptionContent}>
+                <Text style={styles.newTestOptionText}>Test entire profile again</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <FontAwesome5 name="coins" size={14} color="#666" style={{ marginRight: 4 }} />
+                  <Text style={styles.testOptionCost}>{FULL_PROFILE_TEST_COST}</Text>
+                </View>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.newTestOptionButton}
+              style={[styles.newTestOptionButton, credits < SINGLE_ITEM_TEST_COST && styles.disabledTestOption]}
               onPress={() => {
+                if (credits < SINGLE_ITEM_TEST_COST) {
+                  handleDisabledTestOption(SINGLE_ITEM_TEST_COST, "a new photo");
+                  return;
+                }
                 setShowNewTestModal(false);
                 setTimeout(() => setSelectMode(true), 250);
               }}
             >
-              <Text style={styles.newTestOptionText}>Test a new photo</Text>
+              <View style={styles.testOptionContent}>
+                <Text style={styles.newTestOptionText}>Test a new photo</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <FontAwesome5 name="coins" size={14} color="#666" style={{ marginRight: 4 }} />
+                  <Text style={styles.testOptionCost}>{SINGLE_ITEM_TEST_COST}</Text>
+                </View>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.newTestOptionButton}
+              style={[styles.newTestOptionButton, credits < SINGLE_ITEM_TEST_COST && styles.disabledTestOption]}
               onPress={() => {
+                if (credits < SINGLE_ITEM_TEST_COST) {
+                  handleDisabledTestOption(SINGLE_ITEM_TEST_COST, "a new prompt");
+                  return;
+                }
                 setShowNewTestModal(false);
                 setTimeout(() => setSelectPromptMode(true), 250);
               }}
             >
-              <Text style={styles.newTestOptionText}>Test a new prompt</Text>
+              <View style={styles.testOptionContent}>
+                <Text style={styles.newTestOptionText}>Test a new prompt</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <FontAwesome5 name="coins" size={14} color="#666" style={{ marginRight: 4 }} />
+                  <Text style={styles.testOptionCost}>{SINGLE_ITEM_TEST_COST}</Text>
+                </View>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -878,25 +905,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
-    minWidth: 80,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
   },
   creditsInlineText: {
     fontSize: 15,
-    fontWeight: '400',
-    marginLeft: 4,
-    marginRight: 6,
+    fontWeight: '500',
     color: '#222',
-  },
-  creditsInlineBarBg: {
-    width: 56,
-    height: 6,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  creditsInlineBarFill: {
-    height: '100%',
-    borderRadius: 3,
   },
   disabledButton: {
     backgroundColor: '#eee',
@@ -1044,6 +1060,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
     lineHeight: 20,
+  },
+  creditsDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  creditsText: {
+    fontSize: 15,
+    color: '#444',
+    fontWeight: '500',
+  },
+  testOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  testOptionCost: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  disabledTestOption: {
+    opacity: 0.5,
   },
 });
 

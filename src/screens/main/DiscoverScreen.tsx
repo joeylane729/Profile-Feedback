@@ -184,8 +184,8 @@ const DiscoverScreen = () => {
         };
       case 'neutral':
         return {
-          backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : '#fff',
-          borderColor: isSelected ? '#2563eb' : '#BFDBFE',
+          backgroundColor: isSelected ? 'rgba(75, 85, 99, 0.08)' : '#fff',
+          borderColor: isSelected ? '#4B5563' : '#9CA3AF',
         };
       case 'keep':
         return {
@@ -387,8 +387,8 @@ const DiscoverScreen = () => {
         };
       case 'neutral':
         return {
-          backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : '#fff',
-          borderColor: isSelected ? '#2563eb' : '#BFDBFE',
+          backgroundColor: isSelected ? 'rgba(75, 85, 99, 0.08)' : '#fff',
+          borderColor: isSelected ? '#4B5563' : '#9CA3AF',
         };
       case 'keep':
         return {
@@ -433,25 +433,19 @@ const DiscoverScreen = () => {
 
   // Credits progress header (copied from ProfileScreen)
   const renderHeader = () => {
-    const progress = Math.min(credits / REQUIRED_CREDITS, 1);
-    const hasEnough = credits >= REQUIRED_CREDITS;
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
         <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Discover</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+            <FontAwesome5 name="coins" size={18} color="#444" style={{ marginRight: 4 }} />
+            <Text style={{ fontSize: 15, fontWeight: '400', marginLeft: 4, color: '#222' }}>{credits}</Text>
+          </View>
           <TouchableOpacity 
             onPress={() => setShowFilterModal(true)}
-            style={{ marginRight: 16 }}
           >
             <Ionicons name="filter" size={24} color="#333" />
           </TouchableOpacity>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8, minWidth: 80 }}>
-            <FontAwesome5 name="coins" size={18} color="#444" style={{ marginRight: 4 }} />
-            <Text style={{ fontSize: 15, fontWeight: '400', marginLeft: 4, marginRight: 6, color: '#222' }}>{credits}/{REQUIRED_CREDITS}</Text>
-            <View style={{ width: 56, height: 6, backgroundColor: '#e0e0e0', borderRadius: 3, overflow: 'hidden' }}>
-              <View style={{ height: '100%', borderRadius: 3, width: `${progress * 100}%`, backgroundColor: hasEnough ? '#333' : '#bbb' }} />
-            </View>
-          </View>
         </View>
       </View>
     );
@@ -847,12 +841,12 @@ const DiscoverScreen = () => {
                   <MaterialCommunityIcons 
                     name="circle-outline" 
                     size={20} 
-                    color={activeFeedback === 'neutral' ? '#2563eb' : '#222'} 
+                    color={activeFeedback === 'neutral' ? '#4B5563' : '#222'} 
                     style={{ marginRight: 4 }} 
                   />
                   <Text style={[
                     styles.photoFeedbackButtonText,
-                    activeFeedback === 'neutral' && { color: '#2563eb' }
+                    activeFeedback === 'neutral' && { color: '#4B5563' }
                   ]}>Neutral</Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -991,7 +985,7 @@ const DiscoverScreen = () => {
                         <MaterialCommunityIcons 
                           name="circle-outline" 
                           size={16} 
-                          color={activePromptFeedback[prompt.id] === 'neutral' ? '#2563eb' : '#222'} 
+                          color={activePromptFeedback[prompt.id] === 'neutral' ? '#4B5563' : '#222'} 
                         />
                       </TouchableOpacity>
 
@@ -1451,7 +1445,7 @@ const styles = StyleSheet.create({
     borderColor: '#FCA5A5', // subtle red border
   },
   neutralButton: {
-    borderColor: '#BFDBFE', // subtle blue border
+    borderColor: '#9CA3AF', // darker grey border
   },
   keepButton: {
     borderColor: '#6EE7B7', // subtle green border
@@ -1460,7 +1454,7 @@ const styles = StyleSheet.create({
     borderColor: '#FDEAD7', // very light orange
   },
   selectedNeutralButton: {
-    borderColor: '#E0E7FF', // very light blue
+    borderColor: '#4B5563', // darker grey
   },
   selectedKeepButton: {
     borderColor: '#D1FAE5', // very light green
@@ -1469,7 +1463,7 @@ const styles = StyleSheet.create({
     color: '#F97316',
   },
   selectedNeutralText: {
-    color: '#2563EB',
+    color: '#4B5563',
   },
   selectedKeepText: {
     color: '#059669',
