@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { register, login, getCurrentUser } from '../controllers/authController';
-import { handleGoogleAuth } from '../controllers/googleAuthController';
+import { googleAuth } from '../controllers/googleAuthController';
 import { authenticate } from '../middleware/auth';
 import { validateRegister, validateLogin } from '../middleware/validation';
 import { generateToken } from '../utils/auth';
@@ -31,7 +31,7 @@ router.post('/login', (req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-router.post('/google', handleGoogleAuth);
+router.post('/google', googleAuth);
 
 // Protected routes
 router.get('/me', authenticate, getCurrentUser);

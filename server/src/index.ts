@@ -1,9 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import profileRoutes from './routes/profile';
+import testRoutes from './routes/test';
+import creditRoutes from './routes/credit';
 import authRoutes from './routes/auth';
 import { authenticate } from './middleware/auth';
-import pool from './utils/db';
+import sequelize from './utils/db';
 
 // Load environment variables
 dotenv.config();
@@ -61,26 +64,25 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server is accessible at http://${host === '0.0.0.0' ? 'YOUR_LOCAL_IP' : host}:${PORT}`);
     
     // Test database connection
-    const client = await pool.connect();
+    await sequelize.authenticate();
     console.log('Successfully connected to PostgreSQL');
-    client.release();
-    
+
     // Check if users table exists
-    const tableCheck = await pool.query(`
+    const [results] = await sequelize.query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
-        WHERE table_name = 'users'
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
       );
-    `);
+    `) as [{ exists: boolean }][];
     
-    if (tableCheck.rows[0].exists) {
+    if (results[0].exists) {
       console.log('Users table is ready');
     } else {
-      console.log('Users table does not exist');
+      console.log('Users table not found');
     }
-    
-    console.log('Connected to PostgreSQL');
   } catch (error) {
-    console.error('Error during server startup:', error);
+    console.error('Unable to connect to the database:', error);
+    process.exit(1);
   }
 }); 

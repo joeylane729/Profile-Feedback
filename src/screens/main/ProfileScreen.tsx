@@ -614,7 +614,7 @@ const ProfileScreen = () => {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={styles.sectionTitle}>Photos</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {data.status === 'not_tested' && (
+                  {data.status !== 'testing' && (
                     <TouchableOpacity onPress={pickImage} style={{ padding: 4 }}>
                       <Ionicons name="add-circle-outline" size={24} color="#222" />
                     </TouchableOpacity>
@@ -634,10 +634,10 @@ const ProfileScreen = () => {
                         isSelectable && styles.photoSelectable,
                       ]}
                       activeOpacity={1}
-                      disabled={data.status === 'not_tested'}
+                      disabled={data.status === 'testing'}
                     >
                       <Image source={{ uri: photo.uri }} style={styles.photo} />
-                      {data.status === 'not_tested' && (
+                      {data.status !== 'testing' && (
                         <TouchableOpacity
                           style={styles.removeButton}
                           onPress={() => removePhoto(photo.id)}
@@ -654,7 +654,7 @@ const ProfileScreen = () => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Bio</Text>
               <View style={styles.contentBox}>
-                {data.status === 'not_tested' ? (
+                {data.status !== 'testing' ? (
                   editingBio ? (
                     <TextInput
                       style={[styles.bioText, { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, minHeight: 80 }]}
@@ -682,7 +682,7 @@ const ProfileScreen = () => {
                 <View key={prompt.id} style={{ position: 'relative', marginBottom: 16 }}>
                   <Text style={styles.promptQuestion}>{prompt.question}</Text>
                   <View style={styles.contentBox}>
-                    {data.status === 'not_tested' ? (
+                    {data.status !== 'testing' ? (
                       editingPrompt === prompt.id ? (
                         <TextInput
                           style={[styles.promptAnswer, { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, minHeight: 40 }]}

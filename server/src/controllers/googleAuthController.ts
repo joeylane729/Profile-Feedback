@@ -1,87 +1,70 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import pool from '../utils/db';
+import { User } from '../models';
 import { generateToken } from '../utils/auth';
+import crypto from 'crypto';
 
-export const handleGoogleAuth = async (req: AuthRequest, res: Response) => {
+export const googleAuth = async (req: AuthRequest, res: Response) => {
   try {
-    console.log('Received Google auth request:', req.body);
-    const { googleId, email, name, profilePicture } = req.body;
-
-    if (!googleId || !email) {
-      console.error('Missing required fields:', { googleId, email });
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+    const { googleId, email, firstName, lastName, profilePicture } = req.body;
 
     // Check if user already exists with this Google ID
-    const existingUser = await pool.query(
-      'SELECT id, email, name FROM users WHERE google_id = $1',
-      [googleId]
-    );
-
-    console.log('Existing user check result:', existingUser.rows);
-
-    if (existingUser.rows.length > 0) {
-      // User exists, generate token and return
-      const user = existingUser.rows[0];
-      const token = generateToken(user);
-      console.log('Returning existing user:', { user, token });
-      
+    const existingUser = await User.findOne({ where: { google_id: googleId } });
+    if (existingUser) {
+      const token = generateToken(existingUser);
       return res.json({
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
+          id: existingUser.id,
+          email: existingUser.email,
+          first_name: existingUser.first_name,
+          last_name: existingUser.last_name,
+          credits: existingUser.credits
         },
         token,
       });
     }
 
-    // Check if user exists with this email but different auth method
-    const emailUser = await pool.query(
-      'SELECT id, email, name FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (emailUser.rows.length > 0) {
+    // Check if user exists with this email
+    const emailUser = await User.findOne({ where: { email } });
+    if (emailUser) {
       // Update existing user with Google ID
-      const result = await pool.query(
-        `UPDATE users 
-         SET google_id = $1, profile_picture = $2
-         WHERE email = $3
-         RETURNING id, email, name`,
-        [googleId, profilePicture, email]
-      );
-
-      const user = result.rows[0];
-      const token = generateToken(user);
-
+      emailUser.google_id = googleId;
+      await emailUser.save();
+      const token = generateToken(emailUser);
       return res.json({
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
+          id: emailUser.id,
+          email: emailUser.email,
+          first_name: emailUser.first_name,
+          last_name: emailUser.last_name,
+          credits: emailUser.credits
         },
         token,
       });
     }
+
+    // Generate a random password for Google-authenticated users
+    const randomPassword = crypto.randomBytes(32).toString('hex');
 
     // Create new user
-    const result = await pool.query(
-      `INSERT INTO users (email, name, google_id, profile_picture)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, email, name`,
-      [email, name, googleId, profilePicture]
-    );
+    const user = await User.create({
+      email,
+      password: randomPassword,
+      google_id: googleId,
+      first_name: firstName,
+      last_name: lastName,
+      credits: 0,
+      is_active: true
+    });
 
-    const user = result.rows[0];
     const token = generateToken(user);
-
     res.status(201).json({
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        credits: user.credits
       },
       token,
     });

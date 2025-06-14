@@ -6,16 +6,22 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "build": "tsc",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "migrate:up": "ts-node src/migrate.ts up",
+    "migrate:down": "ts-node src/migrate.ts down",
+    "seed": "ts-node src/seed.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/pg": "^8.11.14",
+    "@types/sequelize": "^4.28.20",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
@@ -23,7 +29,8 @@
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.0",
-    "pg": "^8.15.6"
+    "pg": "^8.15.6",
+    "sequelize": "^6.37.7"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

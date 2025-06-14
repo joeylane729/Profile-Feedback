@@ -1,28 +1,35 @@
-import { Pool } from 'pg';
+import { Sequelize } from 'sequelize';
+import dotenv from 'dotenv';
 
-const pool = new Pool({
-  user: process.env.PGUSER || 'postgres',
-  host: process.env.PGHOST || 'localhost',
-  database: process.env.PGDATABASE || 'profile_feedback',
-  password: process.env.PGPASSWORD || 'postgres',
-  port: parseInt(process.env.PGPORT || '5432'),
+dotenv.config();
+
+const sequelize = new Sequelize({
+  dialect: 'postgres',
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || '5432'),
+  username: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  logging: false, // Set to console.log to see SQL queries
+  define: {
+    timestamps: true,
+    underscored: true,
+  },
 });
 
 // Test connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Error connecting to PostgreSQL:', err);
-    process.exit(1);
-  }
+sequelize.authenticate().then(() => {
   console.log('Successfully connected to PostgreSQL');
-  release();
+}).catch((err) => {
+  console.error('Error connecting to PostgreSQL:', err);
+  process.exit(1);
 });
 
 // Run migrations
 const runMigrations = async () => {
   try {
     // Create users table
-    await pool.query(`
+    await sequelize.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -41,4 +48,4 @@ const runMigrations = async () => {
 
 runMigrations();
 
-export default pool; 
+export default sequelize; 
