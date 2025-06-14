@@ -42,6 +42,15 @@ type Photo = {
   liked?: boolean;
 };
 
+// Add dummy data for question responses
+type QuestionResponse = {
+  id: string;
+  question: string;
+  type: 'mc' | 'open';
+  options?: string[];
+  responses: { user: string; answer: string }[];
+};
+
 // Dummy data - in a real app, this would come from your backend
 const DUMMY_FEEDBACK = {
   totalRatings: 42,
@@ -159,7 +168,48 @@ const DUMMY_FEEDBACK = {
         { comment: "Comes off a little negative or closed-off.", count: 4 }
       ]
     }
-  ]
+  ],
+  questionResponses: [
+    {
+      id: 'q1',
+      question: 'What is your first impression of me?',
+      type: 'open' as const,
+      responses: [
+        { user: 'user1', answer: 'You seem very friendly and outgoing!' },
+        { user: 'user2', answer: 'I like your adventurous spirit.' },
+        { user: 'user3', answer: 'You have a great smile.' },
+        { user: 'user4', answer: 'You come across as genuine and authentic.' },
+        { user: 'user5', answer: 'Your profile shows you have a great sense of humor.' },
+        { user: 'user6', answer: 'You seem like someone who knows what they want.' },
+        { user: 'user7', answer: 'Your photos show you have an active lifestyle.' },
+        { user: 'user8', answer: 'You appear to be very confident and self-assured.' },
+        { user: 'user9', answer: 'Your profile suggests you\'re a thoughtful person.' },
+        { user: 'user10', answer: 'You seem to have a good balance of fun and seriousness.' },
+        { user: 'user11', answer: 'Your profile shows you\'re well-traveled and cultured.' },
+        { user: 'user12', answer: 'You come across as someone who values experiences.' },
+      ],
+    },
+    {
+      id: 'q2',
+      question: 'What type of relationship are you looking for?',
+      type: 'mc' as const,
+      options: ['Long-term relationship', 'Casual dating', 'Friendship', 'Not sure yet'],
+      responses: [
+        { user: 'user1', answer: 'Long-term relationship' },
+        { user: 'user2', answer: 'Casual dating' },
+        { user: 'user3', answer: 'Long-term relationship' },
+        { user: 'user4', answer: 'Friendship' },
+        { user: 'user5', answer: 'Long-term relationship' },
+        { user: 'user6', answer: 'Not sure yet' },
+        { user: 'user7', answer: 'Long-term relationship' },
+        { user: 'user8', answer: 'Casual dating' },
+        { user: 'user9', answer: 'Long-term relationship' },
+        { user: 'user10', answer: 'Friendship' },
+        { user: 'user11', answer: 'Long-term relationship' },
+        { user: 'user12', answer: 'Not sure yet' },
+      ],
+    },
+  ],
 };
 
 const RatingBar = ({ count, total, rating }: { count: number; total: number; rating: number }) => {
@@ -312,15 +362,17 @@ const PhotoBarChart = ({ keep, neutral, remove, style }: { keep: number; neutral
 
 const FeedbackScreen = () => {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
-  const [activeTab, setActiveTab] = useState<'photos' | 'prompts'>('photos');
+  const [activeTab, setActiveTab] = useState<'photos' | 'prompts' | 'questions'>('photos');
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showResponsesModal, setShowResponsesModal] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<QuestionResponse | null>(null);
   const [filters, setFilters] = useState({
     sortDirection: 'decreasing', // 'increasing' | 'decreasing'
     showOnlyLiked: false,
   });
   const translateX = useRef(new Animated.Value(0)).current;
   const { width } = Dimensions.get('window');
-  const gestureStartTab = useRef<'photos' | 'prompts'>(activeTab);
+  const gestureStartTab = useRef<'photos' | 'prompts' | 'questions'>(activeTab);
   const isSwiping = useRef(false);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -339,46 +391,54 @@ const FeedbackScreen = () => {
       isSwiping.current = true;
     },
     onPanResponderMove: (_, gestureState) => {
-      const baseX = gestureStartTab.current === 'photos' ? 0 : -width;
+      let baseX = 0;
+      if (gestureStartTab.current === 'photos') baseX = 0;
+      else if (gestureStartTab.current === 'prompts') baseX = -width;
+      else if (gestureStartTab.current === 'questions') baseX = -2 * width;
       const newX = baseX + (gestureState.dx * 0.5);
       translateX.setValue(newX);
     },
     onPanResponderRelease: (_, gestureState) => {
       const SWIPE_THRESHOLD = width * 0.2;
-      const baseX = gestureStartTab.current === 'photos' ? 0 : -width;
+      let baseX = 0;
+      if (gestureStartTab.current === 'photos') baseX = 0;
+      else if (gestureStartTab.current === 'prompts') baseX = -width;
+      else if (gestureStartTab.current === 'questions') baseX = -2 * width;
       const relativeX = gestureState.dx;
       isSwiping.current = false;
-      
-      if (relativeX > SWIPE_THRESHOLD && gestureStartTab.current !== 'photos') {
-        setActiveTab('photos');
-        Animated.spring(translateX, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 50,
-          friction: 7,
-        }).start();
-      } else if (relativeX < -SWIPE_THRESHOLD && gestureStartTab.current !== 'prompts') {
-        setActiveTab('prompts');
-        Animated.spring(translateX, {
-          toValue: -width,
-          useNativeDriver: true,
-          tension: 50,
-          friction: 7,
-        }).start();
-      } else {
-        Animated.spring(translateX, {
-          toValue: baseX,
-          useNativeDriver: true,
-          tension: 50,
-          friction: 7,
-        }).start();
+      if (relativeX > SWIPE_THRESHOLD) {
+        if (gestureStartTab.current === 'prompts') {
+          setActiveTab('photos');
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, tension: 50, friction: 7 }).start();
+          return;
+        }
+        if (gestureStartTab.current === 'questions') {
+          setActiveTab('prompts');
+          Animated.spring(translateX, { toValue: -width, useNativeDriver: true, tension: 50, friction: 7 }).start();
+          return;
+        }
+      } else if (relativeX < -SWIPE_THRESHOLD) {
+        if (gestureStartTab.current === 'photos') {
+          setActiveTab('prompts');
+          Animated.spring(translateX, { toValue: -width, useNativeDriver: true, tension: 50, friction: 7 }).start();
+          return;
+        }
+        if (gestureStartTab.current === 'prompts') {
+          setActiveTab('questions');
+          Animated.spring(translateX, { toValue: -2 * width, useNativeDriver: true, tension: 50, friction: 7 }).start();
+          return;
+        }
       }
+      Animated.spring(translateX, { toValue: baseX, useNativeDriver: true, tension: 50, friction: 7 }).start();
     },
   });
 
   useEffect(() => {
     if (isSwiping.current) return;
-    const toValue = activeTab === 'photos' ? 0 : -width;
+    let toValue = 0;
+    if (activeTab === 'photos') toValue = 0;
+    else if (activeTab === 'prompts') toValue = -width;
+    else if (activeTab === 'questions') toValue = -2 * width;
     Animated.spring(translateX, {
       toValue,
       useNativeDriver: true,
@@ -489,8 +549,50 @@ const FeedbackScreen = () => {
     </Modal>
   );
 
-  const renderContent = () => {
-    if (activeTab === 'photos') {
+  const renderResponsesModal = () => (
+    <Modal
+      visible={showResponsesModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowResponsesModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <View style={{ flex: 1, marginRight: 40 }}>
+              <Text style={styles.modalTitle} numberOfLines={2}>{selectedQuestion?.question}</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => setShowResponsesModal(false)} 
+              style={[styles.closeButton, { position: 'absolute', right: 16, top: 16 }]}
+            >
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScrollView}>
+            <View style={styles.responsesGrid}>
+              {selectedQuestion?.responses.map((resp, idx) => (
+                <View 
+                  key={idx} 
+                  style={styles.responseCard}
+                >
+                  <View style={styles.responseContent}>
+                    <Text style={styles.responseText}>{resp.answer}</Text>
+                  </View>
+                  <View style={styles.responseDecoration}>
+                    <Ionicons name="chatbubble-outline" size={16} color="#333" />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderContent = (tab: 'photos' | 'prompts' | 'questions') => {
+    if (tab === 'photos') {
       const filteredPhotos = getFilteredPhotos();
       return (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -529,49 +631,120 @@ const FeedbackScreen = () => {
         </ScrollView>
       );
     }
+    if (tab === 'prompts') {
+      return (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.section}>
+            <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
+            <View style={styles.photoList}>
+              {DUMMY_FEEDBACK.prompts.map((prompt) => {
+                const keeps = prompt.breakdown[5] + prompt.breakdown[4];
+                const neutrals = prompt.breakdown[3];
+                const removes = prompt.breakdown[2] + prompt.breakdown[1];
+                return (
+                  <View key={prompt.id} style={styles.photoCard}>
+                    <View style={styles.promptHeader}>
+                      <View style={{ flex: 1 }}>
+                      <Text style={{ 
+                        fontSize: 15, 
+                        fontWeight: '600', 
+                        color: '#333', 
+                        marginBottom: 6
+                      }}>Q: {prompt.question}</Text>
+                      <Text style={{ 
+                        fontSize: 14, 
+                        color: '#444', 
+                        lineHeight: 20
+                      }}>A: {prompt.response}</Text>
+                    </View>
+                      <TouchableOpacity 
+                        onPress={() => handleTestPress(prompt.id)}
+                        style={styles.testButton}
+                      >
+                        <MaterialCommunityIcons name="flask-outline" size={24} color="#2563eb" />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 28, marginTop: 12 }}>
+                      <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
+                      <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0, marginRight: 0 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                      <View style={{ width: 220, height: 28, justifyContent: 'center', paddingRight: 0 }}>
+                        <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} style={{ position: 'absolute', top: 0, right: 0 }} />
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        </ScrollView>
+      );
+    }
+    // Questions tab
     return (
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
-          <View style={styles.photoList}>
-            {DUMMY_FEEDBACK.prompts.map((prompt) => {
-              const keeps = prompt.breakdown[5] + prompt.breakdown[4];
-              const neutrals = prompt.breakdown[3];
-              const removes = prompt.breakdown[2] + prompt.breakdown[1];
-              return (
-                <View key={prompt.id} style={styles.photoCard}>
-                  <View style={styles.promptHeader}>
-                    <View style={{ flex: 1 }}>
-                    <Text style={{ 
-                      fontSize: 15, 
-                      fontWeight: '600', 
-                      color: '#333', 
-                      marginBottom: 6
-                    }}>Q: {prompt.question}</Text>
-                    <Text style={{ 
-                      fontSize: 14, 
-                      color: '#444', 
-                      lineHeight: 20
-                    }}>A: {prompt.response}</Text>
+          {DUMMY_FEEDBACK.questionResponses && DUMMY_FEEDBACK.questionResponses.length > 0 ? (
+            DUMMY_FEEDBACK.questionResponses.map(q => (
+              <View key={q.id} style={styles.photoCard}>
+                <Text style={{ fontWeight: '600', fontSize: 15, marginBottom: 8, color: '#333' }}>Q: {q.question}</Text>
+                {q.type === 'mc' && q.options && (
+                  <View style={{ marginBottom: 12 }}>
+                    {q.options.map((opt, idx) => {
+                      const optionCount = q.responses.filter(r => r.answer === opt).length;
+                      const percentage = (optionCount / q.responses.length) * 100;
+                      return (
+                        <View key={idx} style={{ marginBottom: 12 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text style={{ color: '#222', fontSize: 14, flex: 1 }}>{opt}</Text>
+                            <Text style={{ color: '#666', fontSize: 14, marginLeft: 8 }}>{percentage.toFixed(0)}%</Text>
+                          </View>
+                          <View style={{ height: 8, backgroundColor: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
+                            <View style={{ 
+                              width: `${percentage}%`, 
+                              height: '100%', 
+                              backgroundColor: '#2563eb',
+                              borderRadius: 4
+                            }} />
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
-                    <TouchableOpacity 
-                      onPress={() => handleTestPress(prompt.id)}
-                      style={styles.testButton}
-                    >
-                      <MaterialCommunityIcons name="flask-outline" size={24} color="#2563eb" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 28, marginTop: 12 }}>
-                    <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
-                    <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0, marginRight: 0 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
-                    <View style={{ width: 220, height: 28, justifyContent: 'center', paddingRight: 0 }}>
-                      <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} style={{ position: 'absolute', top: 0, right: 0 }} />
+                )}
+                {q.type === 'open' && (
+                  <>
+                    <View style={styles.previewResponses}>
+                      {q.responses.slice(0, 3).map((resp, idx) => (
+                        <View 
+                          key={idx} 
+                          style={styles.previewResponseCard}
+                        >
+                          <Text style={styles.previewResponseText}>{resp.answer}</Text>
+                        </View>
+                      ))}
                     </View>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                    {q.responses.length > 3 && (
+                      <TouchableOpacity 
+                        style={undefined}
+                        onPress={() => {
+                          setSelectedQuestion(q);
+                          setShowResponsesModal(true);
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={styles.viewMoreLinkText}>View all {q.responses.length} responses</Text>
+                          <Ionicons name="chevron-forward" size={16} color="#2563eb" />
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
+            ))
+          ) : (
+            <Text style={{ color: '#888', fontStyle: 'italic', marginTop: 16 }}>No responses yet.</Text>
+          )}
         </View>
       </ScrollView>
     );
@@ -588,22 +761,22 @@ const FeedbackScreen = () => {
           <TouchableOpacity onPress={() => setActiveTab('prompts')} style={[styles.tabItem, activeTab === 'prompts' && styles.activeTabItem]}>
             <Text style={[styles.tabText, activeTab === 'prompts' && styles.activeTabText]}>Prompts</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => setActiveTab('questions')} style={[styles.tabItem, activeTab === 'questions' && styles.activeTabItem]}>
+            <Text style={[styles.tabText, activeTab === 'questions' && styles.activeTabText]}>Questions</Text>
+          </TouchableOpacity>
         </View>
         <View {...panResponder.panHandlers} style={{ flex: 1, overflow: 'hidden' }}>
           <Animated.View style={[
             styles.content,
             {
               transform: [{ translateX }],
-              width: width * 2,
+              width: width * 3,
               flexDirection: 'row',
             }
           ]}>
-            <View style={{ width }}>
-              {renderContent()}
-            </View>
-            <View style={{ width }}>
-              {renderContent()}
-            </View>
+            <View style={{ width }}>{renderContent('photos')}</View>
+            <View style={{ width }}>{renderContent('prompts')}</View>
+            <View style={{ width }}>{renderContent('questions')}</View>
           </Animated.View>
         </View>
         {renderFilterModal()}
@@ -612,6 +785,7 @@ const FeedbackScreen = () => {
           visible={!!selectedPhoto} 
           onClose={() => setSelectedPhoto(null)} 
         />
+        {renderResponsesModal()}
       </View>
     </SafeAreaView>
   );
@@ -808,7 +982,7 @@ const styles = StyleSheet.create({
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
@@ -823,11 +997,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    lineHeight: 24,
   },
   closeButton: {
     padding: 4,
+    zIndex: 1,
   },
   touchIndicator: {
     position: 'absolute',
@@ -1011,6 +1188,63 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  viewMoreLinkText: {
+    color: '#2563eb',
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 4,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  responsesGrid: {
+    padding: 16,
+    gap: 12,
+  },
+  responseCard: {
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f8f9fa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  responseContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  responseText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#222',
+  },
+  responseDecoration: {
+    paddingTop: 2,
+  },
+  previewResponses: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  previewResponseCard: {
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  previewResponseText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#222',
   },
 });
 
