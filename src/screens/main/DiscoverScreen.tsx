@@ -1,10 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager, ViewStyle, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ScrollView, Animated, PanResponder, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, InteractionManager, ViewStyle, Modal, TextInput, Keyboard, Platform, findNodeHandle, UIManager, KeyboardAvoidingView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { colors } from '../../config/theme';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const { width, height } = Dimensions.get('window');
 const PHOTO_CAROUSEL_HEIGHT = height;
@@ -139,6 +140,11 @@ const DiscoverScreen = () => {
   const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
   const [reviewerAnswer, setReviewerAnswer] = useState<string>('');
   const [reviewerMCAnswer, setReviewerMCAnswer] = useState<number | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const keyboardAwareScrollViewRef = useRef<KeyboardAwareScrollView>(null);
+  const textInputRef = useRef<TextInput>(null);
+  const textInputWrapperRef = useRef<View>(null);
 
   const profile = DUMMY_REVIEWS[profileIndex];
 
@@ -598,6 +604,36 @@ const DiscoverScreen = () => {
     </Modal>
   );
 
+  useEffect(() => {
+    const keyboardWillShow = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardWillHide = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(keyboardWillShow, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setIsKeyboardVisible(true);
+      setTimeout(() => {
+        if (textInputWrapperRef.current && keyboardAwareScrollViewRef.current && e.endCoordinates.height > 0) {
+          const scrollResponderRaw = keyboardAwareScrollViewRef.current.getScrollResponder && keyboardAwareScrollViewRef.current.getScrollResponder();
+          const scrollResponder = scrollResponderRaw as any;
+          const inputHandle = findNodeHandle(textInputWrapperRef.current);
+          if (scrollResponder && typeof inputHandle === 'number') {
+            scrollResponder.scrollResponderScrollNativeHandleToKeyboard(inputHandle, 16, true);
+          }
+        }
+      }, 100);
+    });
+
+    const hideSubscription = Keyboard.addListener(keyboardWillHide, () => {
+      setKeyboardHeight(0);
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   if (!profile) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -692,6 +728,32 @@ const DiscoverScreen = () => {
       outputRange: [height, height * 0.2],
     })
   );
+
+  const animatedViewStyle = [
+    styles.expandableProfile,
+    {
+      bottom: 0,
+      transform: [{ translateY }],
+    },
+    { height: `100%` as const }
+  ];
+  const keyboardAwareScrollViewProps = {
+    scrollEnabled: isProfileExpanded,
+    bounces: false,
+    enableOnAndroid: true,
+    enableAutomaticScroll: true,
+    extraScrollHeight: Platform.OS === 'ios' ? 0 : 20,
+    paddingBottom: insets.bottom + tabBarHeight + 40
+  };
+
+  const popupAnimatedViewStyle = [
+    styles.expandableProfile,
+    {
+      bottom: 0,
+      transform: [{ translateY }],
+      height: height * 0.8,
+    }
+  ];
 
   return (
     <>
@@ -864,14 +926,7 @@ const DiscoverScreen = () => {
             <View style={styles.popupOverlayBg} />
           </TouchableWithoutFeedback>
           <Animated.View 
-            style={[
-              styles.expandableProfile, 
-              { 
-                bottom: 0,
-                transform: [{ translateY }],
-                height: height * 0.8
-              }
-            ]}
+            style={popupAnimatedViewStyle}
           >
             {/* Hide Profile Button with PanResponder */}
             <View {...panResponder.panHandlers}>
@@ -882,8 +937,8 @@ const DiscoverScreen = () => {
                 <View style={styles.hideProfileBar} />
               </TouchableOpacity>
             </View>
-            <ScrollView
-              ref={scrollViewRef}
+            <KeyboardAwareScrollView
+              ref={keyboardAwareScrollViewRef}
               style={styles.profileScroll}
               contentContainerStyle={[
                 styles.profileContent,
@@ -892,6 +947,10 @@ const DiscoverScreen = () => {
               showsVerticalScrollIndicator={false}
               scrollEnabled={isProfileExpanded}
               bounces={false}
+              enableOnAndroid={true}
+              enableAutomaticScroll={true}
+              keyboardShouldPersistTaps="handled"
+              extraScrollHeight={Platform.OS === 'ios' ? 0 : 20}
             >
               {/* About Me Section */}
               <View style={styles.sectionCard}>
@@ -982,22 +1041,31 @@ const DiscoverScreen = () => {
                     </View>
                   )}
                   {profile.reviewerQuestion.type === 'open' && (
-                    <TextInput
-                      style={{
-                        borderWidth: 1,
-                        borderColor: '#eee',
-                        borderRadius: 8,
-                        padding: 12,
-                        fontSize: 15,
-                        backgroundColor: '#fafafa',
-                        color: '#222',
-                        minHeight: 48,
-                      }}
-                      placeholder="Type your answer..."
-                      value={reviewerAnswer}
-                      onChangeText={setReviewerAnswer}
-                      multiline
-                    />
+                    <View ref={textInputWrapperRef}>
+                      <TextInput
+                        ref={textInputRef}
+                        style={{
+                          borderWidth: 1,
+                          borderColor: '#ddd',
+                          borderRadius: 8,
+                          padding: 12,
+                          fontSize: 15,
+                          backgroundColor: '#fff',
+                          color: '#222',
+                          minHeight: 48,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 0.05,
+                          shadowRadius: 2,
+                          elevation: 1,
+                        }}
+                        placeholder="Type your answer..."
+                        placeholderTextColor="#999"
+                        value={reviewerAnswer}
+                        onChangeText={setReviewerAnswer}
+                        multiline
+                      />
+                    </View>
                   )}
                 </View>
               )}
@@ -1027,7 +1095,7 @@ const DiscoverScreen = () => {
                   </Text>
                 )}
               </View>
-            </ScrollView>
+            </KeyboardAwareScrollView>
           </Animated.View>
         </View>
       )}
