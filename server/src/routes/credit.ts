@@ -1,5 +1,5 @@
 import express from 'express';
-import { CreditTransaction, User } from '../models';
+import { CreditTransaction, User, Credits } from '../models';
 import sequelize from '../utils/db';
 import { Transaction } from 'sequelize';
 
@@ -32,14 +32,17 @@ router.post('/add', async (req, res) => {
         description: 'Credit purchase'
       }, { transaction: t });
 
-      // Update user's credit balance
-      await User.increment('credits', {
-        by: amount,
-        where: { id: user_id },
+      // Get or create credits record and update balance
+      const [credits] = await Credits.findOrCreate({
+        where: { user_id },
+        defaults: { user_id, balance: 0 },
         transaction: t
       });
 
-      return transaction;
+      credits.balance += amount;
+      await credits.save({ transaction: t });
+
+      return { transaction, newBalance: credits.balance };
     });
 
     res.json(result);

@@ -5,4 +5,5 @@ export { Prompt, IPrompt } from './Prompt';
 export { Test, ITest } from './Test';
 export { TestItem, ITestItem } from './TestItem';
 export { Rating, IRating } from './Rating';
-export { CreditTransaction, ICreditTransaction } from './CreditTransaction'; 
+export { CreditTransaction, ICreditTransaction } from './CreditTransaction';
+export { Credits, ICredits } from './Credits'; 

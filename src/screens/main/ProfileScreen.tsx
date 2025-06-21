@@ -9,7 +9,7 @@
  * State and logic are managed locally for demonstration purposes.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5, Fontisto } from '@expo/
 import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -39,6 +39,8 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { colors } from '../../config/theme';
 import CreateProfileScreen from './CreateProfileScreen';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
+import { RouteProp } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 const PHOTO_SIZE = (width - 48) / 3;
@@ -105,6 +107,7 @@ const ProfileScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [testStatus, setTestStatus] = useState<TestStatus | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<MainTabParamList, 'Profile'>>();
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const progressAnim = React.useRef(new Animated.Value(0)).current;
   const [credits, setCredits] = useState(0); // Will be updated from userData
@@ -117,34 +120,58 @@ const ProfileScreen = () => {
   const [showNewTestModal, setShowNewTestModal] = useState(false);
   const [addingPrompt, setAddingPrompt] = useState(false);
 
+  // Add a ref to track testing state immediately
+  const isTestingRef = React.useRef(false);
+
   useEffect(() => {
     if (token) {
       fetchUserData();
     }
   }, [token]);
 
-  // Mock test completion
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
+  // Simulate test completion after MOCK_TEST_DURATION
+  React.useEffect(() => {
     if (testStatus?.status === 'testing') {
-      // Simulate test completion after MOCK_TEST_DURATION
-      timeoutId = setTimeout(() => {
-        setTestStatus({
-          status: 'complete',
-          testId: testStatus.testId,
-          completedAt: new Date().toISOString(),
-        });
-        setData(prev => ({ ...prev, status: 'complete' }));
-      }, MOCK_TEST_DURATION) as unknown as NodeJS.Timeout;
-    }
+      const timeoutId = setTimeout(async () => {
+        console.log('Test completed, updating status to complete');
+        
+        // Call backend to complete the test only if we have a real test ID (not a temporary one)
+        if (testStatus.testId && token && !testStatus.testId.startsWith('temp_')) {
+          try {
+            const response = await fetch(`${config.api.baseUrl}/api/test/${testStatus.testId}/complete`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
 
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [testStatus?.status]);
+            if (response.ok) {
+              console.log('Test completed successfully in backend');
+            } else {
+              console.error('Failed to complete test in backend:', response.status);
+            }
+          } catch (error) {
+            console.error('Error completing test in backend:', error);
+          }
+        } else if (testStatus.testId?.startsWith('temp_')) {
+          console.log('Skipping backend completion for temporary test ID:', testStatus.testId);
+        }
+        
+        setTestStatus(prev => ({
+          ...prev!,
+          status: 'complete',
+          completedAt: new Date().toISOString(),
+        }));
+        setData(prev => ({ ...prev, status: 'complete' }));
+        // Reset the ref when test completes
+        isTestingRef.current = false;
+        console.log('isTestingRef reset to false');
+      }, MOCK_TEST_DURATION) as unknown as NodeJS.Timeout;
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [testStatus?.status, testStatus?.testId, token]);
 
   // Replace bouncing animation with progress bar animation
   React.useEffect(() => {
@@ -160,18 +187,53 @@ const ProfileScreen = () => {
     }
   }, [testStatus?.status]);
 
-  useEffect(() => {
-    // Check if navigation param requests to trigger test
-    const unsubscribe = navigation.addListener('focus', () => {
-      const params = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'Profile')?.params;
-      if (params?.triggerTest) {
-        startTestLogic();
-        // Remove the param so it doesn't retrigger
-        navigation.setParams({ triggerTest: undefined });
+  // Check for triggerTest parameter when screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Profile screen focused, checking for triggerTest parameter');
+      
+      // Check route params first
+      if (route.params?.triggerTest) {
+        console.log('TriggerTest parameter found in route params, starting test logic');
+        console.log('TestId from route params:', route.params?.testId);
+        startTestLogic(route.params?.testId);
+        // Clear the parameter
+        navigation.setParams({ triggerTest: undefined, testId: undefined });
+        return;
       }
-    });
-    return unsubscribe;
-  }, [navigation]);
+      
+      // Also check navigation state for nested parameters
+      const state = (navigation as any)?.getState?.();
+      console.log('Full navigation state:', JSON.stringify(state, null, 2));
+      
+      if (!state) {
+        console.log('No navigation state found');
+        return;
+      }
+      
+      // Find the Main route
+      const mainRoute = state.routes?.find((r: any) => r.name === 'Main');
+      console.log('Main route found:', mainRoute ? 'yes' : 'no');
+      
+      if (mainRoute?.state?.routes) {
+        console.log('Main route state routes:', mainRoute.state.routes);
+        // Find the Profile tab within Main
+        const profileRoute = mainRoute.state.routes.find((r: any) => r.name === 'Profile');
+        console.log('Profile route found:', profileRoute ? 'yes' : 'no');
+        console.log('Profile route params:', profileRoute?.params);
+        
+        if (profileRoute?.params?.triggerTest) {
+          console.log('TriggerTest parameter found in nested navigation, starting test logic');
+          console.log('TestId from nested navigation:', profileRoute?.params?.testId);
+          startTestLogic(profileRoute?.params?.testId);
+          // Clear the parameter by setting it to undefined
+          navigation.setParams({ triggerTest: undefined, testId: undefined });
+          return;
+        }
+      }
+      console.log('No triggerTest parameter found');
+    }, [navigation, route.params])
+  );
 
   const fetchUserData = async () => {
     try {
@@ -200,36 +262,60 @@ const ProfileScreen = () => {
       console.log('User data received:', userData);
       setUserData(userData);
       setCredits(userData.credits || 0);
-      
-      // Check if user has a profile and populate profile data
-      if (userData.profile) {
-        console.log('User has profile, populating data:', userData.profile);
-        setHasProfile(true);
+
+      // Fetch profile separately
+      try {
+        // Don't fetch profile data if we're currently in testing mode
+        console.log('fetchUserData: Checking if test is in progress...');
+        console.log('fetchUserData: testStatus?.status =', testStatus?.status);
+        console.log('fetchUserData: data.status =', data.status);
+        console.log('fetchUserData: isTestingRef.current =', isTestingRef.current);
         
-        // Convert backend profile data to frontend format
-        const profileData = {
-          photos: userData.profile.Photos?.map((photo: any, index: number) => ({
-            id: photo.id.toString(),
-            uri: `${config.api.baseUrl}${photo.url}`
-          })) || [],
-          bio: userData.profile.bio || '',
-          prompts: userData.profile.Prompts?.map((prompt: any) => ({
-            id: prompt.id.toString(),
-            question: prompt.question,
-            answer: prompt.answer
-          })) || [],
-          status: userData.profile.status || 'not_tested'
-        };
+        if (isTestingRef.current) {
+          console.log('Skipping profile fetch - test in progress (checked via ref)');
+          return;
+        }
         
-        console.log('Converted profile data:', profileData);
-        setData(profileData);
-      } else {
-        console.log('User has no profile, showing create profile screen');
+        console.log('fetchUserData: No test in progress, fetching profile data...');
+        
+        const profileRes = await fetch(`${config.api.baseUrl}/api/profile/${userData.id}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          console.log('User has profile, populating data:', profile);
+          setHasProfile(true);
+          // Convert backend profile data to frontend format
+          const profileData = {
+            photos: profile.Photos?.map((photo: any) => ({
+              id: photo.id.toString(),
+              uri: `${config.api.baseUrl}${photo.url}`
+            })) || [],
+            bio: profile.bio || '',
+            prompts: profile.Prompts?.map((prompt: any) => ({
+              id: prompt.id.toString(),
+              question: prompt.question,
+              answer: prompt.answer
+            })) || [],
+            status: profile.status || 'not_tested'
+          };
+          console.log('Converted profile data:', profileData);
+          console.log('Setting data.status to:', profileData.status);
+          setData(profileData);
+        } else {
+          setHasProfile(false);
+        }
+      } catch (e) {
         setHasProfile(false);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      Alert.alert('Error', 'Failed to load user data. Please try again.');
+      setIsLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -304,14 +390,33 @@ const ProfileScreen = () => {
     navigation.navigate('ProfileTestSetupScreen');
   };
 
-  const startTestLogic = () => {
-    const mockTestId = `test_${Date.now()}`;
+  const startTestLogic = (testId?: number) => {
+    console.log('startTestLogic called - starting test animation');
+    console.log('Current testStatus before:', testStatus);
+    console.log('Current data.status before:', data.status);
+    console.log('TestId passed to startTestLogic:', testId);
+    
+    // Set the ref immediately so fetchUserData can check it
+    isTestingRef.current = true;
+    console.log('isTestingRef set to true');
+    
+    // Use the actual test ID if provided, otherwise generate a temporary one
+    const actualTestId = testId ? testId.toString() : `temp_${Date.now()}`;
     setTestStatus({
       status: 'testing',
-      testId: mockTestId,
+      testId: actualTestId,
     });
-    setData(prev => ({ ...prev, status: 'testing' }));
+    setData(prev => {
+      console.log('Setting data.status to testing, prev status was:', prev.status);
+      return { ...prev, status: 'testing' };
+    });
     setHasProfile(true); // Ensure profile is always shown during testing
+    
+    console.log('startTestLogic completed - testStatus and data.status should now be "testing"');
+    console.log('Test ID set to:', actualTestId);
+    
+    // Don't fetch profile data from backend while testing is in progress
+    // This prevents the backend status from overriding the local testing state
   };
 
   const handleNewTest = () => {
@@ -666,8 +771,12 @@ const ProfileScreen = () => {
   };
 
   const renderStatusIndicator = () => {
+    console.log('renderStatusIndicator called with data.status =', data.status);
+    console.log('renderStatusIndicator called with testStatus?.status =', testStatus?.status);
+    
     switch (data.status) {
       case 'not_tested':
+        console.log('Rendering not_tested status');
         return (
           <View style={styles.statusContainer}>
             <View style={styles.statusInfo}>
@@ -684,6 +793,7 @@ const ProfileScreen = () => {
           </View>
         );
       case 'testing':
+        console.log('Rendering testing status - should show loading bar');
         return (
           <View style={[styles.statusContainer, styles.testingContainer]}>
             <View style={styles.statusInfo}>
@@ -712,6 +822,7 @@ const ProfileScreen = () => {
           </View>
         );
       case 'complete':
+        console.log('Rendering complete status');
         const progress = Math.min(credits / REQUIRED_CREDITS, 1);
         const hasEnough = credits >= REQUIRED_CREDITS;
         return (

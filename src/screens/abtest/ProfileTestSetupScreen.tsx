@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, Platform, Keyboard, TouchableWithoutFeedback, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, Platform, Keyboard, TouchableWithoutFeedback, Switch, Alert } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
+import { testService } from '../../services/test';
 
 type FilterOption = {
   id: string;
@@ -171,22 +172,46 @@ export default function ProfileTestSetupScreen() {
     }
   };
 
-  const handleStartTest = () => {
-    // Close the modal
-    setShowConfirmModal(false);
+  const handleStartTest = async () => {
+    console.log('ProfileTestSetupScreen: handleStartTest called');
+    console.log('Selected filters:', selectedFilters);
+    console.log('Age range:', ageRange);
+    console.log('Custom question:', customQuestion);
+    
+    try {
+      // Close the modal
+      setShowConfirmModal(false);
 
-    // Navigate back to Profile screen with triggerTest parameter
-    navigation.navigate('Main', {
-      screen: 'Profile',
-      params: {
-        triggerTest: true,
-        testFilters: {
-          gender: selectedFilters.gender,
-          age: [`${ageRange[0]}-${ageRange[1]}`]
-        },
-        customQuestion: customQuestion
-      }
-    });
+      // Create the test in the backend
+      console.log('Creating test in backend...');
+      const testResponse = await testService.createTest({
+        type: 'full_profile'
+      });
+      
+      console.log('Test created successfully:', testResponse);
+
+      // Navigate back to Profile screen with triggerTest parameter
+      console.log('Navigating to Main/Profile with triggerTest parameter');
+      navigation.navigate('Main', {
+        screen: 'Profile',
+        params: {
+          triggerTest: true,
+          testId: testResponse.id,
+          testFilters: {
+            gender: selectedFilters.gender,
+            age: [`${ageRange[0]}-${ageRange[1]}`]
+          },
+          customQuestion: customQuestion
+        }
+      });
+    } catch (error) {
+      console.error('Failed to create test:', error);
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to start test. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const renderFilterSection = (section: FilterSection) => {

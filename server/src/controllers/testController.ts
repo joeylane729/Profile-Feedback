@@ -1,6 +1,9 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { User, Profile, Test, TestItem, Rating, CreditTransaction, Photo, Prompt } from '../models';
+import { User, Profile, Test, TestItem, Rating, CreditTransaction, Photo, Prompt, Credits } from '../models';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 export const createTest = async (req: AuthRequest, res: Response) => {
   try {
@@ -17,6 +20,12 @@ export const createTest = async (req: AuthRequest, res: Response) => {
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get user's credits
+    const credits = await Credits.findOne({ where: { user_id: userId } });
+    if (!credits) {
+      return res.status(404).json({ error: 'Credits not found' });
     }
 
     const profile = await Profile.findOne({ where: { user_id: userId } });
@@ -37,7 +46,7 @@ export const createTest = async (req: AuthRequest, res: Response) => {
     }
 
     // Check if user has enough credits
-    if (user.credits < cost) {
+    if (credits.balance < cost) {
       return res.status(400).json({ error: 'Not enough credits' });
     }
 
@@ -51,8 +60,8 @@ export const createTest = async (req: AuthRequest, res: Response) => {
     });
 
     // Deduct credits
-    user.credits -= cost;
-    await user.save();
+    credits.balance -= cost;
+    await credits.save();
 
     // Record credit transaction
     await CreditTransaction.create({
@@ -252,8 +261,8 @@ export const completeTest = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Test not found' });
     }
 
-    if (test.status !== 'in_progress') {
-      return res.status(400).json({ error: 'Test is not in progress' });
+    if (test.status !== 'pending' && test.status !== 'in_progress') {
+      return res.status(400).json({ error: 'Test is not in a state that can be completed' });
     }
 
     // Update test status
@@ -272,5 +281,149 @@ export const completeTest = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Complete test error:', error);
     res.status(500).json({ error: 'Failed to complete test' });
+  }
+};
+
+export const createTestWithReplacement = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { 
+      itemType, 
+      originalItemId, 
+      replacementQuestion, 
+      replacementAnswer, 
+      customQuestion 
+    } = req.body;
+
+    if (!itemType || !originalItemId) {
+      return res.status(400).json({ error: 'Item type and original item ID are required' });
+    }
+
+    if (!['photo', 'prompt'].includes(itemType)) {
+      return res.status(400).json({ error: 'Invalid item type' });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get user's credits
+    const credits = await Credits.findOne({ where: { user_id: userId } });
+    if (!credits) {
+      return res.status(404).json({ error: 'Credits not found' });
+    }
+
+    const profile = await Profile.findOne({ where: { user_id: userId } });
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    // Test cost for single item
+    const cost = 5;
+
+    // Check if user has enough credits
+    if (credits.balance < cost) {
+      return res.status(400).json({ error: 'Not enough credits' });
+    }
+
+    // Verify the original item exists and belongs to the user
+    let originalItem;
+    if (itemType === 'photo') {
+      originalItem = await Photo.findOne({
+        where: { id: originalItemId, profile_id: profile.id }
+      });
+    } else {
+      originalItem = await Prompt.findOne({
+        where: { id: originalItemId, profile_id: profile.id }
+      });
+    }
+
+    if (!originalItem) {
+      return res.status(404).json({ error: 'Original item not found' });
+    }
+
+    // Create test
+    const test = await Test.create({
+      user_id: userId,
+      type: itemType === 'photo' ? 'single_photo' : 'single_prompt',
+      status: 'pending',
+      cost,
+      started_at: new Date()
+    });
+
+    // Deduct credits
+    credits.balance -= cost;
+    await credits.save();
+
+    // Record credit transaction
+    await CreditTransaction.create({
+      user_id: userId,
+      amount: -cost,
+      type: 'test',
+      description: `Test: single_${itemType}`,
+      reference_id: test.id
+    });
+
+    // Create test item for original
+    await TestItem.create({
+      test_id: test.id,
+      item_type: itemType,
+      item_id: originalItemId,
+      original_item_id: originalItemId
+    });
+
+    // Create replacement item
+    let replacementItem;
+    if (itemType === 'photo') {
+      // Handle photo upload
+      if (!req.file) {
+        return res.status(400).json({ error: 'Replacement photo is required' });
+      }
+
+      const photoUrl = `/uploads/${req.file.filename}`;
+      replacementItem = await Photo.create({
+        profile_id: profile.id,
+        url: photoUrl,
+        order_index: 999 // Temporary order, will be cleaned up later
+      });
+    } else {
+      // Handle prompt replacement
+      if (!replacementQuestion || !replacementAnswer) {
+        return res.status(400).json({ error: 'Replacement question and answer are required' });
+      }
+
+      replacementItem = await Prompt.create({
+        profile_id: profile.id,
+        question: replacementQuestion,
+        answer: replacementAnswer
+      });
+    }
+
+    // Create test item for replacement
+    await TestItem.create({
+      test_id: test.id,
+      item_type: itemType,
+      item_id: replacementItem.id,
+      original_item_id: originalItemId
+    });
+
+    // Update profile status
+    profile.status = 'testing';
+    await profile.save();
+
+    res.status(201).json({
+      test,
+      originalItem,
+      replacementItem,
+      customQuestion
+    });
+  } catch (error) {
+    console.error('Create test with replacement error:', error);
+    res.status(500).json({ error: 'Failed to create test' });
   }
 }; 

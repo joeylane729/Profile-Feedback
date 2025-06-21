@@ -2,7 +2,14 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
-  Main: NavigatorScreenParams<MainTabParamList>;
+  Main: NavigatorScreenParams<MainTabParamList> & {
+    triggerTest?: boolean;
+    testFilters?: {
+      gender: string[];
+      age: string[];
+    };
+    customQuestion?: string;
+  };
   TestSetupScreen: {
     onTestComplete?: () => void;
     preselectedPhoto?: string;
@@ -33,6 +40,7 @@ export type MainTabParamList = {
   Feedback: undefined;
   Profile: {
     triggerTest?: boolean;
+    testId?: number;
     testFilters?: {
       gender: string[];
       age: string[];

@@ -1,50 +1,37 @@
 import express from 'express';
-import { Test, TestItem, Rating } from '../models';
+import { createTest, getTest, submitRating, completeTest, createTestWithReplacement } from '../controllers/testController';
+import { authenticate } from '../middleware/auth';
+import multer from 'multer';
+import path from 'path';
 
 const router = express.Router();
 
-// Get all tests for a user
-router.get('/user/:userId', async (req, res) => {
-  try {
-    const tests = await Test.findAll({ where: { user_id: req.params.userId } });
-    res.json(tests);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching tests', error });
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '../../uploads'));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'test-photo-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
+
+const upload = multer({ storage });
 
 // Create a new test
-router.post('/', async (req, res) => {
-  try {
-    const { user_id, type, cost } = req.body;
-    const test = await Test.create({
-      user_id,
-      type,
-      cost,
-      status: 'pending'
-    });
-    res.json(test);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating test', error });
-  }
-});
+router.post('/', authenticate, createTest);
 
-// Get test details including items and ratings
-router.get('/:testId', async (req, res) => {
-  try {
-    const test = await Test.findByPk(req.params.testId, {
-      include: [
-        { model: TestItem },
-        { model: Rating }
-      ]
-    });
-    if (!test) {
-      return res.status(404).json({ message: 'Test not found' });
-    }
-    res.json(test);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching test details', error });
-  }
-});
+// Create a new test with replacement item
+router.post('/with-replacement', authenticate, upload.single('replacementPhoto'), createTestWithReplacement);
+
+// Get test details
+router.get('/:testId', authenticate, getTest);
+
+// Submit a rating for a test item
+router.post('/:testId/ratings', authenticate, submitRating);
+
+// Complete a test
+router.put('/:testId/complete', authenticate, completeTest);
 
 export default router; 

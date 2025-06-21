@@ -9,7 +9,6 @@ export interface IUser {
   first_name: string;
   last_name: string;
   google_id?: string;
-  credits: number;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -25,7 +24,6 @@ class User extends Model<IUser, UserCreationAttributes> implements IUser {
   public first_name!: string;
   public last_name!: string;
   public google_id?: string;
-  public credits!: number;
   public is_active!: boolean;
   public created_at!: Date;
   public updated_at!: Date;
@@ -66,11 +64,6 @@ User.init(
       type: DataTypes.STRING,
       allowNull: true,
       unique: true,
-    },
-    credits: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
     },
     is_active: {
       type: DataTypes.BOOLEAN,

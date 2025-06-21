@@ -61,6 +61,8 @@ app.get('/test', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/test', testRoutes);
+app.use('/api/credit', creditRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { User } from '../models';
+import { User, Credits } from '../models';
 import { generateToken } from '../utils/auth';
 import crypto from 'crypto';
 
@@ -11,6 +11,7 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
     // Check if user already exists with this Google ID
     const existingUser = await User.findOne({ where: { google_id: googleId } });
     if (existingUser) {
+      const credits = await Credits.findOne({ where: { user_id: existingUser.id } });
       const token = generateToken(existingUser);
       return res.json({
         user: {
@@ -18,7 +19,7 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
           email: existingUser.email,
           first_name: existingUser.first_name,
           last_name: existingUser.last_name,
-          credits: existingUser.credits
+          credits: credits ? credits.balance : 0
         },
         token,
       });
@@ -30,6 +31,7 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
       // Update existing user with Google ID
       emailUser.google_id = googleId;
       await emailUser.save();
+      const credits = await Credits.findOne({ where: { user_id: emailUser.id } });
       const token = generateToken(emailUser);
       return res.json({
         user: {
@@ -37,7 +39,7 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
           email: emailUser.email,
           first_name: emailUser.first_name,
           last_name: emailUser.last_name,
-          credits: emailUser.credits
+          credits: credits ? credits.balance : 0
         },
         token,
       });
@@ -53,8 +55,13 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
       google_id: googleId,
       first_name: firstName,
       last_name: lastName,
-      credits: 0,
       is_active: true
+    });
+
+    // Create credits record for new user
+    await Credits.create({
+      user_id: user.id,
+      balance: 0
     });
 
     const token = generateToken(user);
@@ -64,7 +71,7 @@ export const googleAuth = async (req: AuthRequest, res: Response) => {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        credits: user.credits
+        credits: 0
       },
       token,
     });

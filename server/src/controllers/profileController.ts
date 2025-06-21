@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { User, Profile, Photo, Prompt } from '../models';
+import { User, Profile, Photo, Prompt, Credits } from '../models';
 import path from 'path';
 import fs from 'fs';
 
@@ -273,5 +273,56 @@ export const deletePrompt = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Delete prompt error:', error);
     res.status(500).json({ error: 'Failed to delete prompt' });
+  }
+};
+
+export const getUserProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await User.findByPk(userId, {
+      attributes: { exclude: ['password'] }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get user's credits
+    const credits = await Credits.findOne({ where: { user_id: userId } });
+    const creditBalance = credits ? credits.balance : 0;
+
+    const profile = await Profile.findOne({
+      where: { user_id: userId },
+      include: [
+        {
+          model: Photo,
+          as: 'photos',
+          order: [['created_at', 'ASC']]
+        },
+        {
+          model: Prompt,
+          as: 'prompts',
+          order: [['created_at', 'ASC']]
+        }
+      ]
+    });
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        credits: creditBalance
+      },
+      profile: profile || null
+    });
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ error: 'Failed to get user profile' });
   }
 }; 

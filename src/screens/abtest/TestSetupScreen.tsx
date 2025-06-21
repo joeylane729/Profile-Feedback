@@ -1,33 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, TextInput, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-
-// Mock profile data (for fallback)
-const mockProfile = {
-  photos: [
-    { id: '1', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800' },
-    { id: '2', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800' },
-    { id: '3', uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800' },
-  ],
-  prompts: [
-    { id: '1', question: "I'm looking for", answer: "Someone who can make me laugh and isn't afraid to be themselves." },
-    { id: '2', question: "My ideal first date", answer: "Coffee and a walk in the park, followed by a visit to a local art gallery or museum." },
-    { id: '3', question: "A fact about me", answer: "I once biked across the country!" },
-  ],
-};
+import { getProfile } from '../../services/profile';
+import { testService, CreateTestWithReplacementData } from '../../services/test';
+import { useAuth } from '../../context/AuthContext';
+import { jwtDecode } from 'jwt-decode';
+import { config } from '../../config';
 
 export default function TestSetupScreen({ navigation, route }: any) {
   // Get the preselected photo or prompt id from params
   const preselectedPhotoId = route?.params?.preselectedPhoto;
   const preselectedPromptId = route?.params?.preselectedPrompt;
+  const { token } = useAuth();
   
-  // Find the selected item
-  const selectedPhoto = mockProfile.photos.find(p => p.id === preselectedPhotoId);
-  const selectedPrompt = mockProfile.prompts.find(p => p.id === preselectedPromptId);
+  console.log('=== TEST SETUP SCREEN RENDER ===');
+  console.log('route.params:', route?.params);
+  console.log('preselectedPhotoId:', preselectedPhotoId);
+  console.log('preselectedPromptId:', preselectedPromptId);
+  console.log('token exists:', !!token);
   
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [replacementUri, setReplacementUri] = useState<string | null>(null);
   const [replacementAnswer, setReplacementAnswer] = useState<string>('');
   const [replacementQuestion, setReplacementQuestion] = useState<string>('');
@@ -35,10 +31,107 @@ export default function TestSetupScreen({ navigation, route }: any) {
   const [placeholderPressed, setPlaceholderPressed] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isCreatingTest, setIsCreatingTest] = useState(false);
   const TEST_COST = 5;
-  const userCredits = 7; // TODO: Replace with real value or context
   const [customQuestion, setCustomQuestion] = useState('');
   const [useCustomQuestion, setUseCustomQuestion] = useState(false);
+  const [userCredits, setUserCredits] = useState<number>(0);
+  let userId: string | null = null;
+  if (token) {
+    try {
+      const decoded: any = jwtDecode(token.replace('Bearer ', ''));
+      userId = decoded.userId?.toString();
+      console.log('Decoded userId:', userId);
+    } catch (e) {
+      console.error('Error decoding token:', e);
+      userId = null;
+    }
+  }
+
+  useEffect(() => {
+    console.log('=== TEST SETUP SCREEN USE EFFECT ===');
+    console.log('userId:', userId);
+    console.log('token:', token);
+    loadProfile();
+    loadUserCredits();
+  }, []);
+
+  const loadProfile = async () => {
+    console.log('=== LOADING PROFILE ===');
+    try {
+      setLoading(true);
+      if (!userId) {
+        console.error('User ID not found in token');
+        throw new Error('User ID not found in token');
+      }
+      console.log('Calling getProfile with userId:', userId);
+      const profileData = await getProfile(userId, token!);
+      console.log('Profile data received:', profileData);
+      console.log('Profile data.profile:', profileData.profile);
+      
+      // The /api/profile/:userId endpoint returns the profile directly, not wrapped in a profile property
+      // So we need to handle both cases
+      const actualProfile = profileData.profile || profileData;
+      console.log('Actual profile to use:', actualProfile);
+      setProfile(actualProfile);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      Alert.alert('Error', 'Failed to load profile data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUserCredits = async () => {
+    try {
+      if (!userId) {
+        console.error('User ID not found in token');
+        return;
+      }
+      console.log('Fetching user credits for userId:', userId);
+      const response = await fetch(`${config.api.baseUrl}/api/auth/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('User data received for credits:', userData);
+        setUserCredits(userData.credits || 0);
+      } else {
+        console.error('Failed to fetch user credits');
+      }
+    } catch (error) {
+      console.error('Error fetching user credits:', error);
+    }
+  };
+
+  // Find the selected item from real profile data
+  console.log('TestSetupScreen - preselectedPhotoId:', preselectedPhotoId);
+  console.log('TestSetupScreen - profile:', profile);
+  console.log('TestSetupScreen - profile.Photos:', profile?.Photos);
+  console.log('TestSetupScreen - profile.photos:', profile?.photos);
+  console.log('TestSetupScreen - profile.Prompts:', profile?.Prompts);
+  console.log('TestSetupScreen - profile.prompts:', profile?.prompts);
+  
+  const selectedPhoto = profile?.Photos?.find((p: any) => p.id.toString() === preselectedPhotoId?.toString());
+  const selectedPrompt = profile?.Prompts?.find((p: any) => p.id.toString() === preselectedPromptId?.toString());
+  
+  console.log('TestSetupScreen - selectedPhoto:', selectedPhoto);
+  console.log('TestSetupScreen - selectedPrompt:', selectedPrompt);
+  
+  if (selectedPhoto) {
+    console.log('Selected photo details:', {
+      id: selectedPhoto.id,
+      url: selectedPhoto.url,
+      profile_id: selectedPhoto.profile_id,
+      order_index: selectedPhoto.order_index
+    });
+  }
 
   const pickReplacementPhoto = async () => {
     setIsPicking(true);
@@ -60,37 +153,75 @@ export default function TestSetupScreen({ navigation, route }: any) {
 
   const handleReadyToTest = () => {
     if (selectedPhoto && !replacementUri) return;
-    if (selectedPrompt && !replacementAnswer) return;
-    if (selectedPrompt && !replacementQuestion) return;
+    if (selectedPrompt && (!replacementAnswer || !replacementQuestion)) return;
     setShowConfirmModal(true);
     setErrorMsg('');
   };
 
-  const handleConfirmTest = () => {
+  const handleConfirmTest = async () => {
+    // Check if user has enough credits
     if (userCredits < TEST_COST) {
       setErrorMsg('Not enough credits to start this test.');
       return;
     }
-    setShowConfirmModal(false);
-    // Navigate back to Profile screen with triggerTest parameter
-    navigation.navigate('Main', { 
-      screen: 'Profile', 
-      params: { 
-        triggerTest: true, 
-        customQuestion,
-        testType: selectedPhoto ? 'photo' : 'prompt',
-        testId: selectedPhoto ? selectedPhoto.id : selectedPrompt?.id,
-        replacement: selectedPhoto ? replacementUri : replacementAnswer,
-        replacementQuestion: selectedPrompt ? replacementQuestion : undefined
+
+    setIsCreatingTest(true);
+    try {
+      const testData: CreateTestWithReplacementData = {
+        itemType: selectedPhoto ? 'photo' : 'prompt',
+        originalItemId: selectedPhoto ? selectedPhoto.id : selectedPrompt.id,
+        customQuestion: useCustomQuestion ? customQuestion : undefined,
+      };
+
+      if (selectedPhoto) {
+        // For photo test, we need to convert the URI to a file
+        const response = await fetch(replacementUri!);
+        const blob = await response.blob();
+        const file = new File([blob], 'replacement-photo.jpg', { 
+          type: 'image/jpeg',
+          lastModified: Date.now()
+        });
+        testData.replacementPhoto = file;
+      } else {
+        // For prompt test
+        testData.replacementQuestion = replacementQuestion;
+        testData.replacementAnswer = replacementAnswer;
       }
-    });
+
+      const result = await testService.createTestWithReplacement(testData);
+      
+      setShowConfirmModal(false);
+      
+      // Navigate back to Profile screen and trigger the test status with the actual test ID
+      navigation.navigate('Main', {
+        screen: 'Profile',
+        params: { triggerTest: true, testId: result.id }
+      });
+    } catch (error: any) {
+      console.error('Error creating test:', error);
+      setErrorMsg(error.message || 'Failed to create test');
+    } finally {
+      setIsCreatingTest(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <Text style={styles.header}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!selectedPhoto && !selectedPrompt) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.header}>No item selected.</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <Text style={styles.header}>No item selected.</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -117,7 +248,7 @@ export default function TestSetupScreen({ navigation, route }: any) {
               <>
                 <Text style={styles.label}>Current Photo</Text>
                 <View style={styles.photoWrapper}>
-                  <Image source={{ uri: selectedPhoto.uri }} style={styles.photo} />
+                  <Image source={{ uri: `${config.api.baseUrl}${selectedPhoto.url}` }} style={styles.photo} />
                 </View>
                 <Text style={styles.label}>Replacement Photo</Text>
                 {replacementUri ? (
@@ -219,14 +350,18 @@ export default function TestSetupScreen({ navigation, route }: any) {
               <TouchableOpacity 
                 style={styles.modalCancelBtn} 
                 onPress={() => setShowConfirmModal(false)}
+                disabled={isCreatingTest}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.modalConfirmBtn} 
+                style={[styles.modalConfirmBtn, isCreatingTest && styles.startButtonDisabled]} 
                 onPress={handleConfirmTest}
+                disabled={isCreatingTest}
               >
-                <Text style={styles.modalConfirmText}>Confirm</Text>
+                <Text style={styles.modalConfirmText}>
+                  {isCreatingTest ? 'Creating...' : 'Confirm'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { User, CreditTransaction } from '../models';
+import { User, CreditTransaction, Credits } from '../models';
 
 export const getCredits = async (req: AuthRequest, res: Response) => {
   try {
@@ -9,12 +9,12 @@ export const getCredits = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    const credits = await Credits.findOne({ where: { user_id: userId } });
+    if (!credits) {
+      return res.status(404).json({ error: 'Credits not found' });
     }
 
-    res.json({ credits: user.credits });
+    res.json({ credits: credits.balance });
   } catch (error) {
     console.error('Get credits error:', error);
     res.status(500).json({ error: 'Failed to get credits' });
@@ -52,14 +52,15 @@ export const addCredits = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    // Get or create credits record
+    const [credits] = await Credits.findOrCreate({
+      where: { user_id: userId },
+      defaults: { user_id: userId, balance: 0 }
+    });
 
-    // Add credits to user
-    user.credits += amount;
-    await user.save();
+    // Add credits to balance
+    credits.balance += amount;
+    await credits.save();
 
     // Record transaction
     const transaction = await CreditTransaction.create({
@@ -70,7 +71,7 @@ export const addCredits = async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json({
-      credits: user.credits,
+      credits: credits.balance,
       transaction
     });
   } catch (error) {
