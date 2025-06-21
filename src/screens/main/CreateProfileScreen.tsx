@@ -10,6 +10,7 @@ import {
   Platform,
   Dimensions,
   FlatList,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -44,17 +45,14 @@ interface CreateProfileScreenProps {
 const INITIAL_DATA: ProfileData = {
   photos: [],
   bio: '',
-  prompts: [
-    { id: '1', question: "I'm looking for", answer: '' },
-    { id: '2', question: "My ideal first date", answer: '' },
-    { id: '3', question: "A fact about me", answer: '' },
-  ],
+  prompts: [],
 };
 
 const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => {
   const [data, setData] = useState(INITIAL_DATA);
   const [editingBio, setEditingBio] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -105,6 +103,29 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
     );
   };
 
+  const removePrompt = (promptId: string) => {
+    Alert.alert(
+      'Remove Prompt',
+      'Are you sure you want to remove this prompt?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setData(prev => ({
+              ...prev,
+              prompts: prev.prompts.filter(prompt => prompt.id !== promptId)
+            }));
+          }
+        }
+      ]
+    );
+  };
+
   // Helper to group photos into columns of 2
   const groupPhotosInColumns = (photos: { id: string; uri: string }[]) => {
     const columns: { id: string; uri: string }[][] = [];
@@ -118,6 +139,19 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
     // TODO: Implement profile creation logic
     Alert.alert('Success', 'Profile created successfully!');
     if (onSave) onSave();
+  };
+
+  const addPrompt = () => {
+    const newPrompt = {
+      id: Date.now().toString(),
+      question: '',
+      answer: '',
+    };
+    setData(prev => ({
+      ...prev,
+      prompts: [...prev.prompts, newPrompt]
+    }));
+    setEditingPrompt(newPrompt.id);
   };
 
   return (
@@ -138,29 +172,36 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
               <Ionicons name="add-circle-outline" size={24} color="#222" />
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={groupPhotosInColumns(data.photos)}
-            renderItem={({ item: column }) => (
-              <View style={styles.photoColumn}>
-                {column.map(photo => (
-                  <View key={photo.id} style={styles.photoContainer}>
-                    <Image source={{ uri: photo.uri }} style={styles.photo} />
-                    <TouchableOpacity 
-                      style={styles.removeButton}
-                      onPress={() => removePhoto(photo.id)}
-                    >
-                      <Ionicons name="close-circle" size={24} color="#ff3b30" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-            keyExtractor={(_, idx) => idx.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.photoGrid}
-            style={{ maxHeight: PHOTO_SIZE * 2 + 24 }}
-          />
+          {data.photos.length === 0 ? (
+            <TouchableOpacity onPress={pickImage} style={styles.emptyPhotosContainer}>
+              <Ionicons name="add-circle-outline" size={32} color="#222" />
+              <Text style={styles.emptyPhotosText}>Add photo</Text>
+            </TouchableOpacity>
+          ) : (
+            <FlatList
+              data={groupPhotosInColumns(data.photos)}
+              renderItem={({ item: column }) => (
+                <View style={styles.photoColumn}>
+                  {column.map(photo => (
+                    <View key={photo.id} style={styles.photoContainer}>
+                      <Image source={{ uri: photo.uri }} style={styles.photo} />
+                      <TouchableOpacity 
+                        style={styles.removeButton}
+                        onPress={() => removePhoto(photo.id)}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#ff3b30" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+              keyExtractor={(_, idx) => idx.toString()}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.photoGrid}
+              style={{ maxHeight: PHOTO_SIZE * 2 + 24 }}
+            />
+          )}
         </View>
 
         <View style={styles.section}>
@@ -185,36 +226,95 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Prompts</Text>
-          {data.prompts.map((prompt) => (
-            <View key={prompt.id} style={styles.promptContainer}>
-              <Text style={styles.promptQuestion}>{prompt.question}</Text>
-              {editingPrompt === prompt.id ? (
-                <TextInput
-                  style={styles.promptInput}
-                  value={prompt.answer}
-                  onChangeText={(text) => {
-                    setData(prev => ({
-                      ...prev,
-                      prompts: prev.prompts.map(p =>
-                        p.id === prompt.id ? { ...p, answer: text } : p
-                      )
-                    }));
-                  }}
-                  multiline
-                  onBlur={() => setEditingPrompt(null)}
-                  autoFocus
-                  placeholder={`Answer: ${prompt.question}`}
-                />
-              ) : (
-                <TouchableOpacity onPress={() => setEditingPrompt(prompt.id)} style={styles.clickableBox}>
-                  <Text style={[styles.promptAnswer, !prompt.answer && styles.placeholderText]}>
-                    {prompt.answer || `Answer: ${prompt.question}`}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Prompts</Text>
+            <TouchableOpacity onPress={addPrompt} style={styles.addButton}>
+              <Ionicons name="add-circle-outline" size={24} color="#222" />
+            </TouchableOpacity>
+          </View>
+          {data.prompts.length === 0 ? (
+            <TouchableOpacity onPress={addPrompt} style={styles.emptyPromptsContainer}>
+              <Ionicons name="add-circle-outline" size={32} color="#222" />
+              <Text style={styles.emptyPromptsText}>Add prompt</Text>
+            </TouchableOpacity>
+          ) : (
+            data.prompts.map((prompt) => (
+              <View key={prompt.id} style={styles.promptContainer}>
+                {editingPrompt === prompt.id ? (
+                  <View>
+                    <View style={styles.editingPromptContainer}>
+                      <TextInput
+                        style={styles.promptQuestionInput}
+                        value={prompt.question}
+                        onChangeText={(text) => {
+                          setData(prev => ({
+                            ...prev,
+                            prompts: prev.prompts.map(p =>
+                              p.id === prompt.id ? { ...p, question: text } : p
+                            )
+                          }));
+                        }}
+                        placeholder="Question"
+                        autoFocus
+                      />
+                      <TextInput
+                        style={styles.promptAnswerInput}
+                        value={prompt.answer}
+                        onChangeText={(text) => {
+                          setData(prev => ({
+                            ...prev,
+                            prompts: prev.prompts.map(p =>
+                              p.id === prompt.id ? { ...p, answer: text } : p
+                            )
+                          }));
+                        }}
+                        placeholder="Answer"
+                        multiline
+                      />
+                    </View>
+                    <View style={styles.buttonRow}>
+                      <TouchableOpacity 
+                        style={styles.removePromptButton} 
+                        onPress={() => {
+                          // If both question and answer are empty, remove the prompt
+                          if (!prompt.question.trim() && !prompt.answer.trim()) {
+                            setData(prev => ({
+                              ...prev,
+                              prompts: prev.prompts.filter(p => p.id !== prompt.id)
+                            }));
+                          }
+                          setEditingPrompt(null);
+                        }}
+                      >
+                        <Text style={styles.removePromptButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.doneButton} 
+                        onPress={() => setEditingPrompt(null)}
+                      >
+                        <Text style={styles.doneButtonText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.promptContainer}>
+                    <TouchableOpacity onPress={() => setEditingPrompt(prompt.id)} style={styles.clickableBox}>
+                      <Text style={styles.promptQuestion}>{prompt.question}</Text>
+                      <Text style={[styles.promptAnswer, !prompt.answer && styles.placeholderText]}>
+                        {prompt.answer || "Tap to add your answer..."}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.promptRemoveButton}
+                      onPress={() => removePrompt(prompt.id)}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#ff3b30" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            ))
+          )}
         </View>
       </KeyboardAwareScrollView>
     </SafeAreaView>
@@ -312,6 +412,7 @@ const styles = StyleSheet.create({
   },
   promptContainer: {
     marginBottom: 16,
+    position: 'relative',
   },
   promptQuestion: {
     fontSize: 16,
@@ -348,6 +449,98 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: '#999',
+  },
+  editingPromptContainer: {
+    width: '100%',
+  },
+  editingPromptLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  emptyPromptsContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#f8f8f8',
+  },
+  emptyPromptsText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginTop: 8,
+  },
+  promptQuestionInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  promptAnswerInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 80,
+  },
+  doneButton: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  removePromptButton: {
+    padding: 8,
+  },
+  removePromptButtonText: {
+    color: '#ff3b30',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  promptRemoveButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  emptyPhotosContainer: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#f8f8f8',
+  },
+  emptyPhotosText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
 

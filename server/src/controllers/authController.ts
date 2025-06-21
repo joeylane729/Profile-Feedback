@@ -8,18 +8,28 @@ import { Prompt } from '../models';
 
 export const register = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('=== REGISTER START ===');
+    console.log('Request body:', req.body);
     const { email, password, first_name, last_name } = req.body;
 
+    console.log('Extracted fields:', { email, first_name, last_name, password: password ? '[HIDDEN]' : 'undefined' });
+
     // Check if user already exists
+    console.log('Checking if user exists...');
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
+      console.log('User already exists with email:', email);
       return res.status(400).json({ error: 'Email already registered' });
     }
+    console.log('User does not exist, proceeding with registration');
 
     // Hash password
+    console.log('Hashing password...');
     const hashedPassword = await hashPassword(password);
+    console.log('Password hashed successfully');
 
     // Create new user
+    console.log('Creating new user...');
     const user = await User.create({
       email,
       password: hashedPassword,
@@ -28,10 +38,14 @@ export const register = async (req: AuthRequest, res: Response) => {
       credits: 0, // Start with 0 credits
       is_active: true
     });
+    console.log('User created successfully:', { id: user.id, email: user.email });
 
     // Generate token
+    console.log('Generating token...');
     const token = generateToken(user);
+    console.log('Token generated successfully');
 
+    console.log('=== REGISTER SUCCESS ===');
     res.status(201).json({
       user: {
         id: user.id,
@@ -43,6 +57,7 @@ export const register = async (req: AuthRequest, res: Response) => {
       token,
     });
   } catch (error) {
+    console.error('=== REGISTER ERROR ===');
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Registration failed' });
   }
@@ -50,28 +65,44 @@ export const register = async (req: AuthRequest, res: Response) => {
 
 export const login = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('=== LOGIN START ===');
+    console.log('Request body:', req.body);
     const { email, password } = req.body;
 
+    console.log('Extracted fields:', { email, password: password ? '[HIDDEN]' : 'undefined' });
+
     if (!email || !password) {
+      console.log('Missing email or password');
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
     // Find user
+    console.log('Looking for user with email:', email);
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
+      console.log('User not found with email:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    console.log('User found:', { id: user.id, email: user.email });
 
     // Check password
+    console.log('Checking password...');
     const isValidPassword = await comparePasswords(password, user.password);
+    console.log('Password check result:', isValidPassword);
+    
     if (!isValidPassword) {
+      console.log('Invalid password for user:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    console.log('Password is valid');
 
     // Generate token
+    console.log('Generating token...');
     const token = generateToken(user);
+    console.log('Token generated successfully');
 
+    console.log('=== LOGIN SUCCESS ===');
     res.json({
       user: {
         id: user.id,
@@ -83,6 +114,7 @@ export const login = async (req: AuthRequest, res: Response) => {
       token,
     });
   } catch (error) {
+    console.error('=== LOGIN ERROR ===');
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }

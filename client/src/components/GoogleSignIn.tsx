@@ -15,7 +15,7 @@ const GoogleSignIn: React.FC = () => {
     clientId: '658492764527-uhkc011dut0qb7s26htu9951ibbr397i.apps.googleusercontent.com',
     iosClientId: '658492764527-uhkc011dut0qb7s26htu9951ibbr397i.apps.googleusercontent.com',
     androidClientId: '658492764527-uhkc011dut0qb7s26htu9951ibbr397i.apps.googleusercontent.com',
-    redirectUri: 'exp://192.168.1.249:8081/--/expo-auth-session',
+    redirectUri: 'exp://10.17.150.73:8081/--/expo-auth-session',
   });
 
   React.useEffect(() => {
@@ -39,7 +39,7 @@ const GoogleSignIn: React.FC = () => {
       console.log('Got user info:', userInfo.data);
 
       // Send to our backend
-      const response = await axios.post('http://localhost:5000/api/auth/google', {
+      const response = await axios.post('http://10.17.150.73:3000/api/auth/google', {
         email: userInfo.data.email,
         name: userInfo.data.name,
         googleId: userInfo.data.sub,

@@ -12,8 +12,8 @@ WebBrowser.maybeCompleteAuthSession();
 
 // API URL configuration
 const API_URL = Platform.select({
-  ios: 'http://192.168.1.249:3000',
-  android: 'http://192.168.1.249:3000',
+  ios: 'http://10.17.150.73:3000',
+  android: 'http://10.17.150.73:3000',
   default: 'http://localhost:3000',
 });
 

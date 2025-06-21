@@ -18,10 +18,16 @@ const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:8081';
 
 // Add request logging middleware FIRST
 app.use((req, res, next) => {
-  console.log('\n=== New Request ===');
+  console.log('\n=== NEW REQUEST ===');
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('Origin:', req.headers.origin);
+  console.log('User-Agent:', req.headers['user-agent']);
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Accept:', req.headers.accept);
+  console.log('Body length:', req.headers['content-length'] || '0');
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+  }
   console.log('==================\n');
   next();
 });

@@ -22,15 +22,19 @@ const EmailAuth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
     try {
       setIsLoading(true);
-      console.log('Starting login/register process...');
+      console.log('=== EMAIL AUTH START ===');
+      console.log('Mode:', isLogin ? 'LOGIN' : 'REGISTER');
+      console.log('Form data:', { email, password, firstName, lastName });
       
-      if (!email || !password || (!isLogin && !name)) {
+      if (!email || !password || (!isLogin && (!firstName || !lastName))) {
+        console.log('Validation failed - missing fields');
         Alert.alert('Error', 'Please fill in all fields');
         return;
       }
@@ -38,11 +42,13 @@ const EmailAuth: React.FC = () => {
       const endpoint = isLogin ? config.api.endpoints.auth.login : config.api.endpoints.auth.register;
       const url = `${config.api.baseUrl}${endpoint}`;
       console.log('Making request to:', url);
+      console.log('Config baseUrl:', config.api.baseUrl);
+      console.log('Endpoint:', endpoint);
       
       const body = {
         email,
         password,
-        ...(isLogin ? {} : { name }),
+        ...(isLogin ? {} : { first_name: firstName, last_name: lastName }),
       };
       console.log('Request body:', body);
 
@@ -66,10 +72,12 @@ const EmailAuth: React.FC = () => {
       console.log('Raw response text:', responseText);
 
       if (!response.ok) {
+        console.log('Response not OK - parsing error');
         let errorMessage = 'Authentication failed';
         try {
           const errorData = JSON.parse(responseText);
-          errorMessage = errorData.message || errorMessage;
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          console.log('Parsed error data:', errorData);
         } catch (e) {
           console.log('Error parsing error response:', e);
         }
@@ -114,10 +122,13 @@ const EmailAuth: React.FC = () => {
         throw new Error('No token received');
       }
     } catch (error) {
+      console.error('=== EMAIL AUTH ERROR ===');
       console.error('Error in handleSubmit:', error);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
       Alert.alert('Error', error instanceof Error ? error.message : 'Authentication failed');
     } finally {
       setIsLoading(false);
+      console.log('=== EMAIL AUTH END ===');
     }
   };
 
@@ -126,13 +137,22 @@ const EmailAuth: React.FC = () => {
       <Text style={styles.title}>{isLogin ? 'Sign In' : 'Sign Up'}</Text>
       
       {!isLogin && (
-        <TextInput
-          style={styles.input}
-          placeholder="Name"
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-        />
+        <>
+          <TextInput
+            style={styles.input}
+            placeholder="First Name"
+            value={firstName}
+            onChangeText={setFirstName}
+            autoCapitalize="words"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Last Name"
+            value={lastName}
+            onChangeText={setLastName}
+            autoCapitalize="words"
+          />
+        </>
       )}
       
       <TextInput
