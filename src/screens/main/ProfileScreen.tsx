@@ -25,6 +25,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Fontisto } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -114,6 +115,7 @@ const ProfileScreen = () => {
   const [selectMode, setSelectMode] = useState(false);
   const [selectPromptMode, setSelectPromptMode] = useState(false);
   const [showNewTestModal, setShowNewTestModal] = useState(false);
+  const [addingPrompt, setAddingPrompt] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -383,7 +385,49 @@ const ProfileScreen = () => {
         id: Date.now().toString(),
         uri: result.assets[0].uri,
       };
-      setData(prev => ({ ...prev, photos: [...prev.photos, newPhoto] }));
+      
+      // Update frontend state immediately for better UX
+      const updatedPhotos = [...data.photos, newPhoto];
+      setData(prev => ({ ...prev, photos: updatedPhotos }));
+      
+      // Call API to update profile with new photo
+      try {
+        if (token) {
+          const formData = new FormData();
+          formData.append('bio', data.bio);
+          formData.append('prompts', JSON.stringify(data.prompts));
+          
+          // Add all photos including the new one
+          updatedPhotos.forEach((photo, index) => {
+            const photoFile = {
+              uri: photo.uri,
+              type: 'image/jpeg',
+              name: `photo-${index}.jpg`
+            } as any;
+            formData.append('photos', photoFile);
+          });
+
+          const response = await fetch(`${config.api.baseUrl}/api/profile`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to update profile');
+          }
+          
+          console.log('Photo added successfully to database');
+        }
+      } catch (error) {
+        console.error('Error adding photo:', error);
+        // Revert frontend state if API call failed
+        fetchUserData();
+        Alert.alert('Error', 'Failed to add photo. Please try again.');
+      }
     }
   };
 
@@ -397,8 +441,33 @@ const ProfileScreen = () => {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            setData(prev => ({ ...prev, photos: prev.photos.filter(photo => photo.id !== photoId) }));
+          onPress: async () => {
+            try {
+              // Update frontend state immediately for better UX
+              const updatedPhotos = data.photos.filter(photo => photo.id !== photoId);
+              setData(prev => ({ ...prev, photos: updatedPhotos }));
+              
+              // Call API to delete the specific photo
+              if (token) {
+                const response = await fetch(`${config.api.baseUrl}/api/profile/photo/${photoId}`, {
+                  method: 'DELETE',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                  },
+                });
+
+                if (!response.ok) {
+                  throw new Error('Failed to delete photo');
+                }
+                
+                console.log('Photo removed successfully from database');
+              }
+            } catch (error) {
+              console.error('Error removing photo:', error);
+              // Revert frontend state if API call failed
+              fetchUserData();
+              Alert.alert('Error', 'Failed to remove photo. Please try again.');
+            }
           },
         },
       ]
@@ -408,6 +477,159 @@ const ProfileScreen = () => {
   // Edit bio logic
   const handleBioChange = (text: string) => {
     setData(prev => ({ ...prev, bio: text }));
+  };
+
+  // Save bio to backend
+  const saveBio = async (bioText: string) => {
+    try {
+      if (token) {
+        const response = await fetch(`${config.api.baseUrl}/api/profile`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ bio: bioText }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save bio');
+        }
+        
+        console.log('Bio saved successfully to database');
+      }
+    } catch (error) {
+      console.error('Error saving bio:', error);
+      Alert.alert('Error', 'Failed to save bio. Please try again.');
+    }
+  };
+
+  // Save prompts to backend
+  const savePrompts = async (promptsData: any[]) => {
+    try {
+      if (token) {
+        const response = await fetch(`${config.api.baseUrl}/api/profile`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prompts: promptsData }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save prompts');
+        }
+        
+        console.log('Prompts saved successfully to database');
+      }
+    } catch (error) {
+      console.error('Error saving prompts:', error);
+      Alert.alert('Error', 'Failed to save prompts. Please try again.');
+    }
+  };
+
+  // Update individual prompt
+  const updatePrompt = async (promptId: string, question: string, answer: string) => {
+    try {
+      if (token) {
+        const response = await fetch(`${config.api.baseUrl}/api/profile/prompt/${promptId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ question, answer }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update prompt');
+        }
+        
+        console.log('Prompt updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating prompt:', error);
+      Alert.alert('Error', 'Failed to update prompt. Please try again.');
+    }
+  };
+
+  // Delete individual prompt
+  const deletePrompt = async (promptId: string) => {
+    try {
+      if (token) {
+        const response = await fetch(`${config.api.baseUrl}/api/profile/prompt/${promptId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete prompt');
+        }
+        
+        console.log('Prompt deleted successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting prompt:', error);
+      Alert.alert('Error', 'Failed to delete prompt. Please try again.');
+    }
+  };
+
+  // Add new prompt
+  const addPrompt = async () => {
+    try {
+      const newPrompt = {
+        id: Date.now().toString(),
+        question: '',
+        answer: ''
+      };
+      
+      // Update frontend state immediately for better UX
+      const updatedPrompts = [...data.prompts, newPrompt];
+      setData(prev => ({ ...prev, prompts: updatedPrompts }));
+      
+      // Set editing mode for the new prompt immediately
+      setEditingPrompt(newPrompt.id);
+      
+      console.log('Prompt added successfully');
+    } catch (error) {
+      console.error('Error adding prompt:', error);
+      Alert.alert('Error', 'Failed to add prompt. Please try again.');
+    }
+  };
+
+  // Remove prompt
+  const removePrompt = (promptId: string) => {
+    Alert.alert(
+      'Remove Prompt',
+      'Are you sure you want to remove this prompt?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Update frontend state immediately for better UX
+              const updatedPrompts = data.prompts.filter(prompt => prompt.id !== promptId);
+              setData(prev => ({ ...prev, prompts: updatedPrompts }));
+              
+              // Delete from backend
+              await deletePrompt(promptId);
+              
+              console.log('Prompt removed successfully');
+            } catch (error) {
+              console.error('Error removing prompt:', error);
+              // Revert frontend state if API call failed
+              fetchUserData();
+              Alert.alert('Error', 'Failed to remove prompt. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Edit prompt logic
@@ -524,6 +746,22 @@ const ProfileScreen = () => {
   if (showCreate) {
     return <CreateProfileScreen onSave={handleProfileSave} onCancel={handleProfileCancel} />;
   }
+
+  // Show loading state while fetching data
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Profile</Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#222" />
+          <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {renderHeader()}
@@ -754,55 +992,123 @@ const ProfileScreen = () => {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Bio</Text>
-              <View style={styles.contentBox}>
-                {data.status !== 'testing' ? (
-                  editingBio ? (
-                    <TextInput
-                      style={[styles.bioText, { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, minHeight: 80 }]}
-                      value={data.bio}
-                      onChangeText={handleBioChange}
-                      multiline
-                      autoFocus
-                      onBlur={() => setEditingBio(false)}
-                      placeholder="Write a short bio about yourself..."
-                    />
-                  ) : (
-                    <TouchableOpacity onPress={() => setEditingBio(true)}>
-                      <Text style={styles.bioText}>{data.bio || 'Write a short bio about yourself...'}</Text>
-                    </TouchableOpacity>
-                  )
+              {data.status !== 'testing' ? (
+                editingBio ? (
+                  <TextInput
+                    style={styles.bioInput}
+                    value={data.bio}
+                    onChangeText={handleBioChange}
+                    multiline
+                    autoFocus
+                    onBlur={async () => {
+                      setEditingBio(false);
+                      await saveBio(data.bio);
+                    }}
+                    placeholder="Write a short bio about yourself..."
+                  />
                 ) : (
+                  <TouchableOpacity onPress={() => setEditingBio(true)} style={styles.clickableBox}>
+                    <Text style={[styles.bioText, !data.bio && styles.placeholderText]}>
+                      {data.bio || "Write a short bio about yourself..."}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              ) : (
+                <View style={styles.clickableBox}>
                   <Text style={styles.bioText}>{data.bio}</Text>
-                )}
-              </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Prompts</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={styles.sectionTitle}>Prompts</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {data.status !== 'testing' && (
+                    <TouchableOpacity onPress={addPrompt} style={{ padding: 4 }}>
+                      <Ionicons name="add-circle-outline" size={24} color="#222" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
               {data.prompts.map((prompt) => (
                 <View key={prompt.id} style={{ position: 'relative', marginBottom: 16 }}>
-                  <Text style={styles.promptQuestion}>{prompt.question}</Text>
-                  <View style={styles.contentBox}>
-                    {data.status !== 'testing' ? (
-                      editingPrompt === prompt.id ? (
+                  {editingPrompt === prompt.id ? (
+                    <View>
+                      <View style={styles.editingPromptContainer}>
                         <TextInput
-                          style={[styles.promptAnswer, { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, minHeight: 40 }]}
-                          value={prompt.answer}
-                          onChangeText={text => handlePromptChange(prompt.id, text)}
-                          multiline
+                          style={styles.promptQuestionInput}
+                          value={prompt.question}
+                          onChangeText={(text) => {
+                            setData(prev => ({
+                              ...prev,
+                              prompts: prev.prompts.map(p =>
+                                p.id === prompt.id ? { ...p, question: text } : p
+                              )
+                            }));
+                          }}
+                          placeholder="Question"
                           autoFocus
-                          onBlur={() => setEditingPrompt(null)}
-                          placeholder={`Answer: ${prompt.question}`}
                         />
-                      ) : (
-                        <TouchableOpacity onPress={() => setEditingPrompt(prompt.id)}>
-                          <Text style={styles.promptAnswer}>{prompt.answer || `Answer: ${prompt.question}`}</Text>
+                        <TextInput
+                          style={styles.promptAnswerInput}
+                          value={prompt.answer}
+                          onChangeText={(text) => {
+                            setData(prev => ({
+                              ...prev,
+                              prompts: prev.prompts.map(p =>
+                                p.id === prompt.id ? { ...p, answer: text } : p
+                              )
+                            }));
+                          }}
+                          placeholder="Answer"
+                          multiline
+                        />
+                      </View>
+                      <View style={styles.buttonRow}>
+                        <TouchableOpacity 
+                          style={styles.removePromptButton} 
+                          onPress={async () => {
+                            // If both question and answer are empty, remove the prompt
+                            if (!prompt.question.trim() && !prompt.answer.trim()) {
+                              const updatedPrompts = data.prompts.filter(p => p.id !== prompt.id);
+                              setData(prev => ({ ...prev, prompts: updatedPrompts }));
+                              await savePrompts(updatedPrompts);
+                            }
+                            setEditingPrompt(null);
+                          }}
+                        >
+                          <Text style={styles.removePromptButtonText}>Cancel</Text>
                         </TouchableOpacity>
-                      )
-                    ) : (
-                      <Text style={styles.promptAnswer}>{prompt.answer}</Text>
-                    )}
-                  </View>
+                        <TouchableOpacity 
+                          style={styles.doneButton} 
+                          onPress={async () => {
+                            setEditingPrompt(null);
+                            await updatePrompt(prompt.id, prompt.question, prompt.answer);
+                          }}
+                        >
+                          <Text style={styles.doneButtonText}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.promptContainer}>
+                      <TouchableOpacity onPress={() => setEditingPrompt(prompt.id)} style={styles.clickableBox}>
+                        <Text style={styles.promptQuestion}>{prompt.question}</Text>
+                        <Text style={[styles.promptAnswer, !prompt.answer && styles.placeholderText]}>
+                          {prompt.answer || "Tap to add your answer..."}
+                        </Text>
+                      </TouchableOpacity>
+                      {data.status !== 'testing' && (
+                        <TouchableOpacity
+                          style={styles.promptRemoveButton}
+                          onPress={() => removePrompt(prompt.id)}
+                        >
+                          <Ionicons name="close-circle" size={24} color="#ff3b30" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -1190,6 +1496,83 @@ const styles = StyleSheet.create({
   },
   disabledTestOption: {
     opacity: 0.5,
+  },
+  editingPromptContainer: {
+    width: '100%',
+  },
+  promptQuestionInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  promptAnswerInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 80,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  removePromptButton: {
+    padding: 8,
+  },
+  removePromptButtonText: {
+    color: '#ff3b30',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  doneButton: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  clickableBox: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 4,
+    marginTop: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  promptRemoveButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  bioInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 100,
   },
 });
 

@@ -108,19 +108,21 @@ router.post('/', authenticate, upload.array('photos', 10), async (req: AuthReque
     }
 
     // Handle prompts
-    if (parsedPrompts.length > 0) {
+    if (parsedPrompts !== undefined) {
       // Delete existing prompts
       await Prompt.destroy({ where: { profile_id: profile.id } });
       
-      // Create new prompts
-      const promptPromises = parsedPrompts.map((prompt: any) => {
-        return Prompt.create({
-          profile_id: profile.id,
-          question: prompt.question,
-          answer: prompt.answer
+      // Create new prompts if any are provided
+      if (parsedPrompts.length > 0) {
+        const promptPromises = parsedPrompts.map((prompt: any) => {
+          return Prompt.create({
+            profile_id: profile.id,
+            question: prompt.question,
+            answer: prompt.answer
+          });
         });
-      });
-      await Promise.all(promptPromises);
+        await Promise.all(promptPromises);
+      }
     }
 
     // Fetch the complete profile with photos and prompts
@@ -139,6 +141,115 @@ router.post('/', authenticate, upload.array('photos', 10), async (req: AuthReque
   } catch (error) {
     console.error('Profile creation error:', error);
     res.status(500).json({ message: 'Error creating/updating profile', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Delete individual photo
+router.delete('/photo/:photoId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { photoId } = req.params;
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Find the photo and verify it belongs to the user
+    const photo = await Photo.findOne({
+      include: [{
+        model: Profile,
+        where: { user_id: userId }
+      }],
+      where: { id: photoId }
+    });
+
+    if (!photo) {
+      return res.status(404).json({ message: 'Photo not found or not authorized' });
+    }
+
+    // Delete the file from filesystem
+    const filePath = path.join(__dirname, '../../', photo.url);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Delete from database
+    await photo.destroy();
+
+    res.json({ message: 'Photo deleted successfully' });
+  } catch (error) {
+    console.error('Photo deletion error:', error);
+    res.status(500).json({ message: 'Error deleting photo', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Update individual prompt
+router.put('/prompt/:promptId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { promptId } = req.params;
+    const { question, answer } = req.body;
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Find the prompt and verify it belongs to the user
+    const prompt = await Prompt.findOne({
+      include: [{
+        model: Profile,
+        where: { user_id: userId }
+      }],
+      where: { id: promptId }
+    });
+
+    if (!prompt) {
+      return res.status(404).json({ message: 'Prompt not found or not authorized' });
+    }
+
+    // Update the prompt
+    await prompt.update({
+      question: question || prompt.question,
+      answer: answer || prompt.answer
+    });
+
+    res.json({ message: 'Prompt updated successfully', prompt });
+  } catch (error) {
+    console.error('Prompt update error:', error);
+    res.status(500).json({ message: 'Error updating prompt', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Delete individual prompt
+router.delete('/prompt/:promptId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { promptId } = req.params;
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Find the prompt and verify it belongs to the user
+    const prompt = await Prompt.findOne({
+      include: [{
+        model: Profile,
+        where: { user_id: userId }
+      }],
+      where: { id: promptId }
+    });
+
+    if (!prompt) {
+      return res.status(404).json({ message: 'Prompt not found or not authorized' });
+    }
+
+    // Delete from database
+    await prompt.destroy();
+
+    res.json({ message: 'Prompt deleted successfully' });
+  } catch (error) {
+    console.error('Prompt deletion error:', error);
+    res.status(500).json({ message: 'Error deleting prompt', error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { User, Profile, Test, TestItem, Rating, CreditTransaction } from '../models';
+import { User, Profile, Test, TestItem, Rating, CreditTransaction, Photo, Prompt } from '../models';
 
 export const createTest = async (req: AuthRequest, res: Response) => {
   try {
@@ -58,7 +58,7 @@ export const createTest = async (req: AuthRequest, res: Response) => {
     await CreditTransaction.create({
       user_id: userId,
       amount: -cost,
-      type: 'spend',
+      type: 'test',
       description: `Test: ${type}`,
       reference_id: test.id
     });
@@ -206,10 +206,9 @@ export const submitRating = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Test not found' });
     }
 
-    // Check if item belongs to test
-    const testItem = test.test_items.find(
-      item => item.item_type === itemType && item.item_id === itemId
-    );
+    // @ts-ignore
+    const testItems = (test.TestItems || test.testItems || test.items || []);
+    const testItem = testItems.find((item: any) => item.item_type === itemType && item.item_id === itemId);
 
     if (!testItem) {
       return res.status(404).json({ error: 'Item not found in test' });
@@ -217,7 +216,7 @@ export const submitRating = async (req: AuthRequest, res: Response) => {
 
     // Create rating
     const ratingRecord = await Rating.create({
-      test_id: testId,
+      test_id: Number(testId),
       rater_id: userId,
       item_type: itemType,
       item_id: itemId,

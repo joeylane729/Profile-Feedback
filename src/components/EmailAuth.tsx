@@ -132,6 +132,17 @@ const EmailAuth: React.FC = () => {
     }
   };
 
+  // Check if all required fields are filled
+  const isFormValid = () => {
+    if (isLogin) {
+      return email.trim() !== '' && password.trim() !== '';
+    } else {
+      return email.trim() !== '' && password.trim() !== '' && firstName.trim() !== '' && lastName.trim() !== '';
+    }
+  };
+
+  const isButtonDisabled = isLoading || !isFormValid();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{isLogin ? 'Sign In' : 'Sign Up'}</Text>
@@ -173,9 +184,9 @@ const EmailAuth: React.FC = () => {
       />
       
       <TouchableOpacity
-        style={[styles.button, isLoading && styles.buttonDisabled]}
+        style={[styles.button, isButtonDisabled && styles.buttonDisabled]}
         onPress={handleSubmit}
-        disabled={isLoading}
+        disabled={isButtonDisabled}
       >
         <Text style={styles.buttonText}>
           {isLoading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}

@@ -65,7 +65,7 @@ export const addCredits = async (req: AuthRequest, res: Response) => {
     const transaction = await CreditTransaction.create({
       user_id: userId,
       amount,
-      type: 'earn',
+      type: 'purchase',
       description: description || 'Credit purchase'
     });
 

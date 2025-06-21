@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { User, Profile, Photo, Prompt } from '../models';
+import path from 'path';
+import fs from 'fs';
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
@@ -42,7 +44,8 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       defaults: {
         user_id: userId,
         bio: bio || '',
-        status: 'not_tested'
+        status: 'not_tested',
+        is_active: true
       }
     });
 
@@ -154,6 +157,14 @@ export const deletePhoto = async (req: AuthRequest, res: Response) => {
 
     if (!photo) {
       return res.status(404).json({ error: 'Photo not found' });
+    }
+
+    // Delete the file from filesystem if it exists
+    if (photo.url) {
+      const filePath = path.join(__dirname, '../../', photo.url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
 
     await photo.destroy();
