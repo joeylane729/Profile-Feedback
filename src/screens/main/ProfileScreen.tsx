@@ -93,14 +93,21 @@ const INITIAL_DATA: ProfileData = {
 const ProfileScreen = () => {
   const { setIsAuthenticated, setToken, token } = useAuth();
   const [data, setData] = useState(INITIAL_DATA);
-  const [userData, setUserData] = useState<{ name: string } | null>(null);
+  const [userData, setUserData] = useState<{ 
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+    credits: number;
+    profile?: any;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [testStatus, setTestStatus] = useState<TestStatus | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const progressAnim = React.useRef(new Animated.Value(0)).current;
-  const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
-  const [hasProfile, setHasProfile] = useState(false); // always false by default for now
+  const [credits, setCredits] = useState(0); // Will be updated from userData
+  const [hasProfile, setHasProfile] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
@@ -187,9 +194,37 @@ const ProfileScreen = () => {
         throw new Error(`Failed to fetch user data: ${response.status} - ${responseText}`);
       }
 
-      const data = JSON.parse(responseText);
-      console.log('User data received:', data);
-      setUserData(data);
+      const userData = JSON.parse(responseText);
+      console.log('User data received:', userData);
+      setUserData(userData);
+      setCredits(userData.credits || 0);
+      
+      // Check if user has a profile and populate profile data
+      if (userData.profile) {
+        console.log('User has profile, populating data:', userData.profile);
+        setHasProfile(true);
+        
+        // Convert backend profile data to frontend format
+        const profileData = {
+          photos: userData.profile.Photos?.map((photo: any, index: number) => ({
+            id: photo.id.toString(),
+            uri: `${config.api.baseUrl}${photo.url}`
+          })) || [],
+          bio: userData.profile.bio || '',
+          prompts: userData.profile.Prompts?.map((prompt: any) => ({
+            id: prompt.id.toString(),
+            question: prompt.question,
+            answer: prompt.answer
+          })) || [],
+          status: userData.profile.status || 'not_tested'
+        };
+        
+        console.log('Converted profile data:', profileData);
+        setData(profileData);
+      } else {
+        console.log('User has no profile, showing create profile screen');
+        setHasProfile(false);
+      }
     } catch (error) {
       console.error('Error fetching user data:', error);
       Alert.alert('Error', 'Failed to load user data. Please try again.');
@@ -205,6 +240,61 @@ const ProfileScreen = () => {
     } catch (error) {
       console.error('Error during logout:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
+  const handleDeleteProfile = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data including photos, prompts, and test results.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: () => performDeleteProfile()
+        },
+      ]
+    );
+  };
+
+  const performDeleteProfile = async () => {
+    try {
+      if (!token) {
+        Alert.alert('Error', 'Authentication token is missing.');
+        return;
+      }
+
+      const response = await fetch(`${config.api.baseUrl}/api/auth/delete-account`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete profile');
+      }
+
+      Alert.alert(
+        'Account Deleted',
+        'Your account has been successfully deleted.',
+        [
+          {
+            text: 'OK',
+            onPress: async () => {
+              // Clear all local data and logout
+              await setToken(null);
+              setIsAuthenticated(false);
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+      Alert.alert('Error', 'Failed to delete profile. Please try again.');
     }
   };
 
@@ -234,12 +324,13 @@ const ProfileScreen = () => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Log Out'],
+          options: ['Cancel', 'Delete Account', 'Log Out'],
           destructiveButtonIndex: 1,
           cancelButtonIndex: 0,
         },
         (buttonIndex) => {
-          if (buttonIndex === 1) handleLogout();
+          if (buttonIndex === 1) handleDeleteProfile();
+          if (buttonIndex === 2) handleLogout();
         }
       );
     } else {
@@ -247,6 +338,7 @@ const ProfileScreen = () => {
         'Menu',
         '',
         [
+          { text: 'Delete Account', style: 'destructive', onPress: handleDeleteProfile },
           { text: 'Log Out', style: 'destructive', onPress: handleLogout },
           { text: 'Cancel', style: 'cancel' },
         ]
@@ -255,7 +347,14 @@ const ProfileScreen = () => {
   };
 
   const handleProfileSave = () => {
-    setHasProfile(true);
+    setShowCreate(false);
+    // Refresh profile data after creating profile
+    if (token) {
+      fetchUserData();
+    }
+  };
+
+  const handleProfileCancel = () => {
     setShowCreate(false);
   };
 
@@ -324,7 +423,9 @@ const ProfileScreen = () => {
   const renderHeader = () => {
     return (
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.title}>
+          {userData ? userData.first_name : 'Profile'}
+        </Text>
         <View style={styles.headerRight}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -421,7 +522,7 @@ const ProfileScreen = () => {
   };
 
   if (showCreate) {
-    return <CreateProfileScreen onSave={handleProfileSave} />;
+    return <CreateProfileScreen onSave={handleProfileSave} onCancel={handleProfileCancel} />;
   }
   return (
     <SafeAreaView style={styles.safeArea}>

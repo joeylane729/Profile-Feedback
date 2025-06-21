@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { register, login, getCurrentUser } from '../controllers/authController';
+import { register, login, getCurrentUser, deleteAccount } from '../controllers/authController';
 import { googleAuth } from '../controllers/googleAuthController';
 import { authenticate } from '../middleware/auth';
 import { validateRegister, validateLogin } from '../middleware/validation';
@@ -15,6 +15,7 @@ router.post('/google', googleAuth);
 
 // Protected routes
 router.get('/me', authenticate, getCurrentUser);
+router.delete('/delete-account', authenticate, deleteAccount);
 
 // Dev login route for local development
 if (process.env.NODE_ENV === 'development') {

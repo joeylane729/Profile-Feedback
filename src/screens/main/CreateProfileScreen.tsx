@@ -11,12 +11,15 @@ import {
   Dimensions,
   FlatList,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { colors } from '../../config/theme';
+import { createProfile } from '../../services/profile';
+import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 const PHOTO_SIZE = (width - 48) / 3;
@@ -40,6 +43,7 @@ interface ProfileData {
 
 interface CreateProfileScreenProps {
   onSave?: () => void;
+  onCancel?: () => void;
 }
 
 const INITIAL_DATA: ProfileData = {
@@ -48,11 +52,14 @@ const INITIAL_DATA: ProfileData = {
   prompts: [],
 };
 
-const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => {
+const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave, onCancel }) => {
+  const { token } = useAuth();
   const [data, setData] = useState(INITIAL_DATA);
   const [editingBio, setEditingBio] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -135,10 +142,25 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
     return columns;
   };
 
-  const handleSave = () => {
-    // TODO: Implement profile creation logic
-    Alert.alert('Success', 'Profile created successfully!');
-    if (onSave) onSave();
+  const handleSave = async () => {
+    if (!token) {
+      setError('Authentication token is missing. Please log in again.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await createProfile(data, token);
+      Alert.alert('Success', 'Profile created successfully!');
+      if (onSave) onSave();
+    } catch (e) {
+      console.error('Error creating profile:', e);
+      setError('An error occurred while creating the profile.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addPrompt = () => {
@@ -157,10 +179,11 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Text style={styles.title}>Create Profile</Text>
-        <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>Save</Text>
+        <TouchableOpacity onPress={() => onCancel?.()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>Cancel</Text>
         </TouchableOpacity>
+        <Text style={styles.title}>Create Profile</Text>
+        <View style={styles.saveButton} />
       </View>
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
@@ -172,6 +195,11 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
               <Ionicons name="add-circle-outline" size={24} color="#222" />
             </TouchableOpacity>
           </View>
+          {data.photos.length < 1 && (
+            <Text style={styles.photoRequirementText}>
+              Add at least 3 photos to create your profile
+            </Text>
+          )}
           {data.photos.length === 0 ? (
             <TouchableOpacity onPress={pickImage} style={styles.emptyPhotosContainer}>
               <Ionicons name="add-circle-outline" size={32} color="#222" />
@@ -314,6 +342,26 @@ const CreateProfileScreen: React.FC<CreateProfileScreenProps> = ({ onSave }) => 
                 )}
               </View>
             ))
+          )}
+        </View>
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity 
+            style={[
+              styles.bottomSaveButton, 
+              data.photos.length < 1 && styles.bottomSaveButtonDisabled
+            ]} 
+            onPress={handleSave}
+            disabled={data.photos.length < 1}
+          >
+            <Text style={[
+              styles.bottomSaveButtonText,
+              data.photos.length < 1 && styles.bottomSaveButtonTextDisabled
+            ]}>
+              {isLoading ? <ActivityIndicator size="small" color="#fff" /> : 'Create Profile'}
+            </Text>
+          </TouchableOpacity>
+          {error && (
+            <Text style={styles.errorText}>{error}</Text>
           )}
         </View>
       </KeyboardAwareScrollView>
@@ -540,6 +588,55 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
     marginTop: 4,
+    textAlign: 'center',
+  },
+  backButton: {
+    padding: 8,
+  },
+  backButtonText: {
+    color: '#222',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  photoRequirementText: {
+    color: '#999',
+    marginBottom: 16,
+  },
+  bottomContainer: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  bottomSaveButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    backgroundColor: '#222',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  bottomSaveButtonDisabled: {
+    backgroundColor: '#f5f5f5',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  bottomSaveButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  bottomSaveButtonTextDisabled: {
+    color: '#999',
+    fontWeight: '400',
+  },
+  errorText: {
+    color: '#ff3b30',
+    marginTop: 16,
     textAlign: 'center',
   },
 });

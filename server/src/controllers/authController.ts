@@ -152,4 +152,63 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
     console.error('Get current user error:', error);
     res.status(500).json({ error: 'Failed to get user' });
   }
+};
+
+export const deleteAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ error: 'User ID not found' });
+    }
+
+    const userId = req.user.userId;
+    console.log('Deleting account for user ID:', userId);
+
+    // Find the user with all associated data
+    const user = await User.findByPk(userId, {
+      include: [
+        {
+          model: Profile,
+          include: [
+            { model: Photo },
+            { model: Prompt }
+          ]
+        }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Delete uploaded photos from filesystem
+    if ((user as any).Profile?.Photos) {
+      const fs = require('fs');
+      const path = require('path');
+      
+      for (const photo of (user as any).Profile.Photos) {
+        try {
+          const photoPath = path.join(__dirname, '../../uploads', path.basename(photo.url));
+          if (fs.existsSync(photoPath)) {
+            fs.unlinkSync(photoPath);
+            console.log('Deleted photo file:', photoPath);
+          }
+        } catch (error) {
+          console.error('Error deleting photo file:', error);
+        }
+      }
+    }
+
+    // Delete the user (this will cascade delete all associated data due to foreign key constraints)
+    await user.destroy();
+    
+    console.log('Successfully deleted user and all associated data for user ID:', userId);
+
+    res.json({ 
+      message: 'Account and all associated data deleted successfully',
+      deletedUserId: userId
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
 }; 
