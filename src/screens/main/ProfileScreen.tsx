@@ -167,6 +167,12 @@ const ProfileScreen = () => {
         // Reset the ref when test completes
         isTestingRef.current = false;
         console.log('isTestingRef reset to false');
+        
+        // Refresh profile data from backend after test completion
+        console.log('Test completed, refreshing profile data from backend...');
+        setTimeout(() => {
+          fetchUserData();
+        }, 500); // Small delay to ensure backend has processed the completion
       }, MOCK_TEST_DURATION) as unknown as NodeJS.Timeout;
       
       return () => clearTimeout(timeoutId);
@@ -191,14 +197,20 @@ const ProfileScreen = () => {
   useFocusEffect(
     useCallback(() => {
       console.log('Profile screen focused, checking for triggerTest parameter');
+      console.log('Route params:', route.params);
+      console.log('Route params triggerTest:', route.params?.triggerTest);
+      console.log('Route params testId:', route.params?.testId);
       
       // Check route params first
       if (route.params?.triggerTest) {
         console.log('TriggerTest parameter found in route params, starting test logic');
         console.log('TestId from route params:', route.params?.testId);
-        startTestLogic(route.params?.testId);
-        // Clear the parameter
-        navigation.setParams({ triggerTest: undefined, testId: undefined });
+        const testId = route.params?.testId;
+        startTestLogic(testId);
+        // Clear the parameter after a short delay to ensure it's processed
+        setTimeout(() => {
+          navigation.setParams({ triggerTest: undefined, testId: undefined });
+        }, 100);
         return;
       }
       
@@ -232,10 +244,16 @@ const ProfileScreen = () => {
         }
       }
       console.log('No triggerTest parameter found');
+      
+      // If we're in complete status and haven't refreshed recently, refresh profile data
+      if (data.status === 'complete' && hasProfile && !isLoading) {
+        console.log('Profile is in complete status, refreshing data from backend...');
+        fetchUserData();
+      }
     }, [navigation, route.params])
   );
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (forceProfileFetch = false) => {
     try {
       console.log('Fetching user data with token:', token);
       const url = `${config.api.baseUrl}${config.api.endpoints.auth.me}`;
@@ -265,18 +283,19 @@ const ProfileScreen = () => {
 
       // Fetch profile separately
       try {
-        // Don't fetch profile data if we're currently in testing mode
+        // Don't fetch profile data if we're currently in testing mode, unless explicitly requested
         console.log('fetchUserData: Checking if test is in progress...');
         console.log('fetchUserData: testStatus?.status =', testStatus?.status);
         console.log('fetchUserData: data.status =', data.status);
         console.log('fetchUserData: isTestingRef.current =', isTestingRef.current);
+        console.log('fetchUserData: forceProfileFetch =', forceProfileFetch);
         
-        if (isTestingRef.current) {
+        if (isTestingRef.current && !forceProfileFetch) {
           console.log('Skipping profile fetch - test in progress (checked via ref)');
           return;
         }
         
-        console.log('fetchUserData: No test in progress, fetching profile data...');
+        console.log('fetchUserData: No test in progress or force fetch requested, fetching profile data...');
         
         const profileRes = await fetch(`${config.api.baseUrl}/api/profile/${userData.id}`, {
           method: 'GET',
@@ -289,13 +308,18 @@ const ProfileScreen = () => {
         if (profileRes.ok) {
           const profile = await profileRes.json();
           console.log('User has profile, populating data:', profile);
+          console.log('Backend Photos array:', profile.Photos);
           setHasProfile(true);
           // Convert backend profile data to frontend format
           const profileData = {
-            photos: profile.Photos?.map((photo: any) => ({
-              id: photo.id.toString(),
-              uri: `${config.api.baseUrl}${photo.url}`
-            })) || [],
+            photos: profile.Photos?.map((photo: any) => {
+              const frontendPhoto = {
+                id: photo.id.toString(),
+                uri: `${config.api.baseUrl}${photo.url}`
+              };
+              console.log('Converting backend photo:', photo, 'to frontend photo:', frontendPhoto);
+              return frontendPhoto;
+            }) || [],
             bio: profile.bio || '',
             prompts: profile.Prompts?.map((prompt: any) => ({
               id: prompt.id.toString(),
@@ -305,6 +329,7 @@ const ProfileScreen = () => {
             status: profile.status || 'not_tested'
           };
           console.log('Converted profile data:', profileData);
+          console.log('Final photos array:', profileData.photos);
           console.log('Setting data.status to:', profileData.status);
           setData(profileData);
         } else {
@@ -390,7 +415,7 @@ const ProfileScreen = () => {
     navigation.navigate('ProfileTestSetupScreen');
   };
 
-  const startTestLogic = (testId?: number) => {
+  const startTestLogic = async (testId?: number) => {
     console.log('startTestLogic called - starting test animation');
     console.log('Current testStatus before:', testStatus);
     console.log('Current data.status before:', data.status);
@@ -399,6 +424,10 @@ const ProfileScreen = () => {
     // Set the ref immediately so fetchUserData can check it
     isTestingRef.current = true;
     console.log('isTestingRef set to true');
+    
+    // Fetch fresh profile data from backend BEFORE setting testing state
+    console.log('Fetching fresh profile data for test display...');
+    await fetchUserData(true);
     
     // Use the actual test ID if provided, otherwise generate a temporary one
     const actualTestId = testId ? testId.toString() : `temp_${Date.now()}`;
@@ -414,9 +443,6 @@ const ProfileScreen = () => {
     
     console.log('startTestLogic completed - testStatus and data.status should now be "testing"');
     console.log('Test ID set to:', actualTestId);
-    
-    // Don't fetch profile data from backend while testing is in progress
-    // This prevents the backend status from overriding the local testing state
   };
 
   const handleNewTest = () => {
@@ -487,7 +513,7 @@ const ProfileScreen = () => {
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const newPhoto = {
-        id: Date.now().toString(),
+        id: `temp_${data.photos.length + 1}`, // Simple temporary ID
         uri: result.assets[0].uri,
       };
       
@@ -651,7 +677,20 @@ const ProfileScreen = () => {
           throw new Error('Failed to update prompt');
         }
         
+        const result = await response.json();
         console.log('Prompt updated successfully');
+        
+        // If this was a temporary ID and a new prompt was created, update the frontend state
+        if (promptId.startsWith('temp_') && result.prompt) {
+          setData(prev => ({
+            ...prev,
+            prompts: prev.prompts.map(p => 
+              p.id === promptId 
+                ? { ...p, id: result.prompt.id.toString() }
+                : p
+            )
+          }));
+        }
       }
     } catch (error) {
       console.error('Error updating prompt:', error);
@@ -686,7 +725,7 @@ const ProfileScreen = () => {
   const addPrompt = async () => {
     try {
       const newPrompt = {
-        id: Date.now().toString(),
+        id: `temp_${data.prompts.length + 1}`, // Simple temporary ID
         question: '',
         answer: ''
       };
@@ -904,6 +943,8 @@ const ProfileScreen = () => {
                   style={[styles.photoContainer, styles.photoSelectable, styles.photoPop, { marginRight: 12 }]}
                   activeOpacity={0.8}
                   onPress={() => {
+                    console.log('Photo selected for testing - Frontend photo ID:', item.id);
+                    console.log('Photo selected for testing - Photo URI:', item.uri);
                     setSelectMode(false);
                     navigation.navigate('TestSetupScreen', { preselectedPhoto: item.id });
                   }}

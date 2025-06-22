@@ -123,6 +123,13 @@ export default function TestSetupScreen({ navigation, route }: any) {
   
   console.log('TestSetupScreen - selectedPhoto:', selectedPhoto);
   console.log('TestSetupScreen - selectedPrompt:', selectedPrompt);
+  console.log('TestSetupScreen - Looking for photo ID:', preselectedPhotoId);
+  console.log('TestSetupScreen - Available photo IDs:', profile?.Photos?.map((p: any) => p.id));
+  console.log('TestSetupScreen - Photo ID comparison:', profile?.Photos?.map((p: any) => ({
+    photoId: p.id,
+    preselectedId: preselectedPhotoId,
+    match: p.id.toString() === preselectedPhotoId?.toString()
+  })));
   
   if (selectedPhoto) {
     console.log('Selected photo details:', {
@@ -190,12 +197,14 @@ export default function TestSetupScreen({ navigation, route }: any) {
 
       const result = await testService.createTestWithReplacement(testData);
       
+      console.log('Test created successfully, navigating with test ID:', result.test.id);
+      
       setShowConfirmModal(false);
       
       // Navigate back to Profile screen and trigger the test status with the actual test ID
       navigation.navigate('Main', {
         screen: 'Profile',
-        params: { triggerTest: true, testId: result.id }
+        params: { triggerTest: true, testId: result.test.id }
       });
     } catch (error: any) {
       console.error('Error creating test:', error);

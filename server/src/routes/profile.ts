@@ -194,7 +194,30 @@ router.put('/prompt/:promptId', authenticate, async (req: AuthRequest, res) => {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    // Find the prompt and verify it belongs to the user
+    // Check if this is a temporary ID (starts with 'temp_')
+    if (promptId.startsWith('temp_')) {
+      // Create a new prompt instead of updating
+      const profile = await Profile.findOne({
+        where: { user_id: userId }
+      });
+
+      if (!profile) {
+        return res.status(404).json({ message: 'Profile not found' });
+      }
+
+      const newPrompt = await Prompt.create({
+        profile_id: profile.id,
+        question: question || '',
+        answer: answer || ''
+      });
+
+      return res.json({ 
+        message: 'Prompt created successfully', 
+        prompt: newPrompt 
+      });
+    }
+
+    // For existing prompts, find and update
     const prompt = await Prompt.findOne({
       include: [{
         model: Profile,

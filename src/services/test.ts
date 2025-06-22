@@ -28,6 +28,13 @@ export interface TestResponse {
   completed_at?: string;
 }
 
+export interface CreateTestWithReplacementResponse {
+  test: TestResponse;
+  originalItem: any;
+  replacementItem: any;
+  customQuestion?: string;
+}
+
 class TestService {
   private async getAuthHeaders(): Promise<Record<string, string>> {
     const token = await AsyncStorage.getItem('token');
@@ -56,7 +63,7 @@ class TestService {
     return response.json();
   }
 
-  async createTestWithReplacement(data: CreateTestWithReplacementData): Promise<TestResponse> {
+  async createTestWithReplacement(data: CreateTestWithReplacementData): Promise<CreateTestWithReplacementResponse> {
     const formData = new FormData();
     
     formData.append('itemType', data.itemType);
