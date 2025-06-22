@@ -17,8 +17,10 @@ import { colors } from '../../config/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
+import { feedbackService, FeedbackData, PhotoFeedback, PromptFeedback, QuestionResponse } from '../../services/feedback';
+import { useAuth } from '../../context/AuthContext';
 
-type PhotoFeedback = {
+type PhotoFeedbackOld = {
   comment: string;
   count: number;
 };
@@ -37,13 +39,13 @@ type Photo = {
   rating: number;
   totalRatings: number;
   breakdown: PhotoBreakdown;
-  feedback: PhotoFeedback[];
+  feedback: PhotoFeedbackOld[];
   ratings?: { keep: number; neutral: number; remove: number };
   liked?: boolean;
 };
 
 // Add dummy data for question responses
-type QuestionResponse = {
+type QuestionResponseOld = {
   id: string;
   question: string;
   type: 'mc' | 'open';
@@ -370,16 +372,41 @@ const FeedbackScreen = () => {
     sortDirection: 'decreasing', // 'increasing' | 'decreasing'
     showOnlyLiked: false,
   });
+  const [feedbackData, setFeedbackData] = useState<FeedbackData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const translateX = useRef(new Animated.Value(0)).current;
   const { width } = Dimensions.get('window');
   const gestureStartTab = useRef<'photos' | 'prompts' | 'questions'>(activeTab);
   const isSwiping = useRef(false);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { token } = useAuth();
+
+  // Fetch feedback data from backend
+  useEffect(() => {
+    const fetchFeedbackData = async () => {
+      if (!token) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await feedbackService.getFeedbackData(token);
+        setFeedbackData(data);
+      } catch (err) {
+        console.error('Error fetching feedback data:', err);
+        setError('Failed to load feedback data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeedbackData();
+  }, [token]);
 
   // Calculate score for each photo and sort
-  const sortedPhotos = DUMMY_FEEDBACK.photos
-    .map(photo => ({ ...photo, score: (photo.ratings?.keep || 0) - (photo.ratings?.remove || 0) }))
-    .sort((a, b) => b.score - a.score);
+  const sortedPhotos = feedbackData?.photos
+    .map(photo => ({ ...photo, score: photo.score }))
+    .sort((a, b) => b.score - a.score) || [];
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => false,
@@ -455,14 +482,11 @@ const FeedbackScreen = () => {
 
   const getFilteredPhotos = () => {
     return sortedPhotos
-      .filter(photo => !filters.showOnlyLiked || photo.liked)
+      .filter(photo => !filters.showOnlyLiked || photo.score > 0)
       .sort((a, b) => {
-        const scoreA = (a.ratings?.keep || 0) - (a.ratings?.remove || 0);
-        const scoreB = (b.ratings?.keep || 0) - (b.ratings?.remove || 0);
-        
         return filters.sortDirection === 'increasing' 
-          ? scoreA - scoreB 
-          : scoreB - scoreA;
+          ? a.score - b.score 
+          : b.score - a.score;
       });
   };
 
@@ -592,17 +616,41 @@ const FeedbackScreen = () => {
   );
 
   const renderContent = (tab: 'photos' | 'prompts' | 'questions') => {
+    if (loading) {
+      return (
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={{ color: '#666' }}>Loading feedback data...</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={{ color: '#ef4444' }}>{error}</Text>
+        </View>
+      );
+    }
+
+    if (!feedbackData) {
+      return (
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={{ color: '#666' }}>No feedback data available</Text>
+        </View>
+      );
+    }
+
     if (tab === 'photos') {
       const filteredPhotos = getFilteredPhotos();
       return (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
-            <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
+            <Text style={styles.totalReviewsText}>{feedbackData.totalRatings} total reviews</Text>
             <View style={styles.photoList}>
               {filteredPhotos.map((photo, index) => {
-                const keeps = photo.ratings?.keep || 0;
-                const neutrals = photo.ratings?.neutral || 0;
-                const removes = photo.ratings?.remove || 0;
+                const keeps = photo.ratings.keep;
+                const neutrals = photo.ratings.neutral;
+                const removes = photo.ratings.remove;
                 return (
                   <View key={photo.id} style={styles.photoCard}>
                     <View style={styles.photoRow}>
@@ -618,7 +666,7 @@ const FeedbackScreen = () => {
                         </View>
                         <View style={styles.scoreRow}>
                           <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
-                          <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                          <Text style={[styles.scoreText, { color: photo.score > 0 ? '#22c55e' : photo.score < 0 ? '#ef4444' : '#888', marginLeft: 0 }]}>{photo.score > 0 ? '+' : ''}{photo.score}</Text>
                         </View>
                         <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} />
                       </View>
@@ -635,12 +683,12 @@ const FeedbackScreen = () => {
       return (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
-            <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
+            <Text style={styles.totalReviewsText}>{feedbackData.totalRatings} total reviews</Text>
             <View style={styles.photoList}>
-              {DUMMY_FEEDBACK.prompts.map((prompt) => {
-                const keeps = prompt.breakdown[5] + prompt.breakdown[4];
-                const neutrals = prompt.breakdown[3];
-                const removes = prompt.breakdown[2] + prompt.breakdown[1];
+              {feedbackData.prompts.map((prompt) => {
+                const keeps = prompt.ratings.keep;
+                const neutrals = prompt.ratings.neutral;
+                const removes = prompt.ratings.remove;
                 return (
                   <View key={prompt.id} style={styles.photoCard}>
                     <View style={styles.promptHeader}>
@@ -655,7 +703,7 @@ const FeedbackScreen = () => {
                         fontSize: 14, 
                         color: '#444', 
                         lineHeight: 20
-                      }}>A: {prompt.response}</Text>
+                      }}>A: {prompt.answer}</Text>
                     </View>
                       <TouchableOpacity 
                         onPress={() => handleTestPress(prompt.id)}
@@ -666,7 +714,7 @@ const FeedbackScreen = () => {
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 28, marginTop: 12 }}>
                       <MaterialCommunityIcons name="swap-vertical" size={26} color={'#000'} style={{ marginRight: 4 }} />
-                      <Text style={[styles.scoreText, { color: (keeps - removes) > 0 ? '#22c55e' : (keeps - removes) < 0 ? '#ef4444' : '#888', marginLeft: 0, marginRight: 0 }]}>{(keeps - removes) > 0 ? '+' : ''}{keeps - removes}</Text>
+                      <Text style={[styles.scoreText, { color: prompt.score > 0 ? '#22c55e' : prompt.score < 0 ? '#ef4444' : '#888', marginRight: 0 }]}>{prompt.score > 0 ? '+' : ''}{prompt.score}</Text>
                       <View style={{ width: 220, height: 28, justifyContent: 'center', paddingRight: 0 }}>
                         <PhotoBarChart keep={keeps} neutral={neutrals} remove={removes} style={{ position: 'absolute', top: 0, right: 0 }} />
                       </View>
@@ -683,9 +731,9 @@ const FeedbackScreen = () => {
     return (
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.totalReviewsText}>{DUMMY_FEEDBACK.totalRatings} total reviews</Text>
-          {DUMMY_FEEDBACK.questionResponses && DUMMY_FEEDBACK.questionResponses.length > 0 ? (
-            DUMMY_FEEDBACK.questionResponses.map(q => (
+          <Text style={styles.totalReviewsText}>{feedbackData.totalRatings} total reviews</Text>
+          {feedbackData.questions && feedbackData.questions.length > 0 ? (
+            feedbackData.questions.map((q: QuestionResponse) => (
               <View key={q.id} style={styles.photoCard}>
                 <Text style={{ fontWeight: '600', fontSize: 15, marginBottom: 8, color: '#333' }}>Q: {q.question}</Text>
                 {q.type === 'mc' && q.options && (

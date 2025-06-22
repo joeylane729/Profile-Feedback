@@ -194,7 +194,7 @@ export const submitRating = async (req: AuthRequest, res: Response) => {
     const { testId } = req.params;
     const { itemType, itemId, rating, feedback, isAnonymous } = req.body;
 
-    if (!testId || !itemType || !itemId || !rating) {
+    if (!testId || !itemType || !itemId || rating === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -205,6 +205,12 @@ export const submitRating = async (req: AuthRequest, res: Response) => {
     if (rating < 1 || rating > 5) {
       return res.status(400).json({ error: 'Rating must be between 1 and 5' });
     }
+
+    // Convert numeric rating to enum value
+    let rating_value: 'keep' | 'neutral' | 'delete';
+    if (rating >= 4) rating_value = 'keep';
+    else if (rating === 3) rating_value = 'neutral';
+    else rating_value = 'delete';
 
     const test = await Test.findOne({
       where: { id: testId },
@@ -229,7 +235,7 @@ export const submitRating = async (req: AuthRequest, res: Response) => {
       rater_id: userId,
       item_type: itemType,
       item_id: itemId,
-      rating,
+      rating_value,
       feedback,
       is_anonymous: isAnonymous || false
     });

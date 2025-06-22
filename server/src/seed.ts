@@ -122,7 +122,7 @@ const seedDatabase = async () => {
         rater_id: user2.id,
         item_type: 'photo',
         item_id: photos[0].id,
-        rating: 5,
+        rating_value: 'keep',
         feedback: 'Great photo!',
         is_anonymous: false
       }),
@@ -131,7 +131,7 @@ const seedDatabase = async () => {
         rater_id: user2.id,
         item_type: 'prompt',
         item_id: prompts[0].id,
-        rating: 4,
+        rating_value: 'keep',
         feedback: 'Interesting answer!',
         is_anonymous: false
       })

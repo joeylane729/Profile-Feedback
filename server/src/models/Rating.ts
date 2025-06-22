@@ -9,7 +9,7 @@ export interface IRating {
   rater_id: number;
   item_type: 'photo' | 'prompt' | 'bio';
   item_id: number;
-  rating: number;
+  rating_value: 'keep' | 'neutral' | 'delete';
   feedback?: string;
   is_anonymous: boolean;
   created_at: Date;
@@ -24,7 +24,7 @@ class Rating extends Model<IRating, RatingCreationAttributes> implements IRating
   public rater_id!: number;
   public item_type!: 'photo' | 'prompt' | 'bio';
   public item_id!: number;
-  public rating!: number;
+  public rating_value!: 'keep' | 'neutral' | 'delete';
   public feedback?: string;
   public is_anonymous!: boolean;
   public created_at!: Date;
@@ -61,13 +61,9 @@ Rating.init(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    rating: {
-      type: DataTypes.INTEGER,
+    rating_value: {
+      type: DataTypes.ENUM('keep', 'neutral', 'delete'),
       allowNull: false,
-      validate: {
-        min: 1,
-        max: 5,
-      },
     },
     feedback: {
       type: DataTypes.TEXT,

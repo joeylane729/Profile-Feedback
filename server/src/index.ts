@@ -6,6 +6,7 @@ import profileRoutes from './routes/profile';
 import testRoutes from './routes/test';
 import creditRoutes from './routes/credit';
 import authRoutes from './routes/auth';
+import feedbackRoutes from './routes/feedback';
 import { authenticate } from './middleware/auth';
 import sequelize from './utils/db';
 
@@ -63,6 +64,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/credit', creditRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
