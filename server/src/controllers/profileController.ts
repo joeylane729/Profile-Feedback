@@ -3,6 +3,8 @@ import { AuthRequest } from '../middleware/auth';
 import { User, Profile, Photo, Prompt, Credits } from '../models';
 import path from 'path';
 import fs from 'fs';
+import { Op } from 'sequelize';
+import sequelize from '../utils/db';
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
@@ -324,5 +326,76 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Get user profile error:', error);
     res.status(500).json({ error: 'Failed to get user profile' });
+  }
+};
+
+export const getRandomProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const currentUserId = req.user?.userId;
+    if (!currentUserId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Get a random profile that's not the current user's and has status 'complete'
+    const randomProfile = await Profile.findOne({
+      where: {
+        user_id: { [Op.ne]: currentUserId },
+        status: 'complete',
+        is_active: true
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'first_name', 'last_name', 'email']
+        },
+        {
+          model: Photo,
+          as: 'photos',
+          order: [['order_index', 'ASC']]
+        },
+        {
+          model: Prompt,
+          as: 'prompts',
+          order: [['created_at', 'ASC']]
+        }
+      ],
+      order: [sequelize.literal('RANDOM()')]
+    });
+
+    if (!randomProfile) {
+      return res.status(404).json({ error: 'No profiles available for discovery' });
+    }
+
+    // Format the response to match the frontend expectations
+    const formattedProfile = {
+      id: randomProfile.id,
+      userId: randomProfile.user_id,
+      name: `${randomProfile.user?.first_name || 'Unknown'} ${randomProfile.user?.last_name || 'User'}`,
+      age: '25', // Mock age for now
+      location: 'New York, NY', // Mock location for now
+      bio: randomProfile.bio,
+      photos: randomProfile.photos?.map((photo: any) => ({
+        id: photo.id.toString(),
+        uri: `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}${photo.url}`
+      })) || [],
+      prompts: randomProfile.prompts?.map((prompt: any) => ({
+        id: prompt.id.toString(),
+        question: prompt.question,
+        answer: prompt.answer
+      })) || [],
+      job: 'Software Engineer', // Mock job for now
+      school: 'University of Technology', // Mock school for now
+      height: '5\'8"', // Mock height for now
+      gender: 'Male', // Mock gender for now
+      languages: 'English, Spanish', // Mock languages for now
+      religion: 'Not specified', // Mock religion for now
+      reviewerQuestion: 'What do you think of this profile?' // Mock question for now
+    };
+
+    res.json(formattedProfile);
+  } catch (error) {
+    console.error('Get random profile error:', error);
+    res.status(500).json({ error: 'Failed to get random profile' });
   }
 }; 

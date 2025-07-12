@@ -17,6 +17,46 @@ export interface ProfileData {
   prompts: Prompt[];
 }
 
+export interface DiscoverProfile {
+  id: string;
+  userId: string;
+  name: string;
+  age?: string;
+  location?: string;
+  bio: string;
+  photos: Photo[];
+  prompts: Prompt[];
+  job?: string;
+  school?: string;
+  height?: string;
+  gender?: string;
+  languages?: string;
+  religion?: string;
+  reviewerQuestion?: string;
+}
+
+export const getRandomProfile = async (token: string): Promise<DiscoverProfile> => {
+  try {
+    const response = await fetch(`${config.api.baseUrl}/api/profile/random`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch random profile');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching random profile:', error);
+    throw error;
+  }
+};
+
 export const createProfile = async (data: ProfileData, token: string): Promise<any> => {
   try {
     const formData = new FormData();

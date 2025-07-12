@@ -66,8 +66,6 @@ Photo.init(
   }
 );
 
-// Define associations
-Photo.belongsTo(Profile, { foreignKey: 'profile_id' });
-Profile.hasMany(Photo, { foreignKey: 'profile_id' });
+// Remove all association definitions from this file. Associations are now defined in models/index.ts.
 
 export { Photo }; 

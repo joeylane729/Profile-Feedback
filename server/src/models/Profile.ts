@@ -1,6 +1,8 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../utils/db';
 import { User } from './User';
+import { Photo } from './Photo';
+import { Prompt } from './Prompt';
 
 export interface IProfile {
   id: number;
@@ -10,6 +12,11 @@ export interface IProfile {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
+  
+  // Association properties
+  user?: User;
+  photos?: Photo[];
+  prompts?: Prompt[];
 }
 
 // These are the fields that can be passed to create
@@ -23,6 +30,11 @@ class Profile extends Model<IProfile, ProfileCreationAttributes> implements IPro
   public is_active!: boolean;
   public created_at!: Date;
   public updated_at!: Date;
+  
+  // Association properties
+  public user?: User;
+  public photos?: Photo[];
+  public prompts?: Prompt[];
 }
 
 Profile.init(
@@ -75,8 +87,6 @@ Profile.init(
   }
 );
 
-// Define associations
-Profile.belongsTo(User, { foreignKey: 'user_id' });
-User.hasOne(Profile, { foreignKey: 'user_id' });
+// Remove all association definitions from this file. Associations are now defined in models/index.ts.
 
 export { Profile }; 

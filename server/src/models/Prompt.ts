@@ -66,8 +66,6 @@ Prompt.init(
   }
 );
 
-// Define associations
-Prompt.belongsTo(Profile, { foreignKey: 'profile_id' });
-Profile.hasMany(Prompt, { foreignKey: 'profile_id' });
+// Remove all association definitions from this file. Associations are now defined in models/index.ts.
 
 export { Prompt }; 

@@ -388,12 +388,19 @@ const FeedbackScreen = () => {
       if (!token) return;
       
       try {
+        console.log('=== FEEDBACK SCREEN: Starting to fetch feedback data ===');
         setLoading(true);
         setError(null);
         const data = await feedbackService.getFeedbackData(token);
+        console.log('=== FEEDBACK SCREEN: Received feedback data ===');
+        console.log('Total photos:', data.photos?.length || 0);
+        console.log('Photo URIs:', data.photos?.map(p => p.uri) || []);
+        console.log('Total prompts:', data.prompts?.length || 0);
+        console.log('Total questions:', data.questions?.length || 0);
         setFeedbackData(data);
+        console.log('=== FEEDBACK SCREEN: Feedback data set successfully ===');
       } catch (err) {
-        console.error('Error fetching feedback data:', err);
+        console.error('=== FEEDBACK SCREEN: Error fetching feedback data ===', err);
         setError('Failed to load feedback data');
       } finally {
         setLoading(false);
@@ -654,7 +661,13 @@ const FeedbackScreen = () => {
                 return (
                   <View key={photo.id} style={styles.photoCard}>
                     <View style={styles.photoRow}>
-                      <Image source={{ uri: photo.uri }} style={styles.photoListImage} />
+                      <Image 
+                        source={{ uri: photo.uri }} 
+                        style={styles.photoListImage}
+                        onLoadStart={() => console.log('=== FEEDBACK SCREEN: Image loading started for:', photo.uri)}
+                        onLoad={() => console.log('=== FEEDBACK SCREEN: Image loaded successfully for:', photo.uri)}
+                        onError={(error) => console.log('=== FEEDBACK SCREEN: Image load error for:', photo.uri, error.nativeEvent)}
+                      />
                       <View style={styles.photoBarChartCol}>
                         <View style={styles.menuRow}>
                           <TouchableOpacity 

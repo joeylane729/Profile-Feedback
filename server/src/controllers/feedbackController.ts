@@ -55,7 +55,7 @@ export const getFeedbackData = async (req: AuthRequest, res: Response) => {
 
         return {
           id: photo.id.toString(),
-          uri: `http://10.17.150.73:3000${photo.url}`,
+          uri: `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}${photo.url}`,
           ratings: { keep, neutral, remove },
           totalRatings,
           score: keep - remove
@@ -144,7 +144,7 @@ export const getPhotoFeedback = async (req: AuthRequest, res: Response) => {
 
     res.json({
       id: photo.id.toString(),
-      uri: `http://10.17.150.73:3000${photo.url}`,
+      uri: `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}${photo.url}`,
       ratings: { keep, neutral, remove },
       totalRatings,
       score: keep - remove,

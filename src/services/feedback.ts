@@ -50,6 +50,10 @@ class FeedbackService {
 
   async getFeedbackData(token: string): Promise<FeedbackData> {
     try {
+      console.log('=== FEEDBACK SERVICE: Making API call ===');
+      console.log('Base URL:', this.baseUrl);
+      console.log('Full URL:', `${this.baseUrl}/api/feedback`);
+      
       const response = await fetch(`${this.baseUrl}/api/feedback`, {
         method: 'GET',
         headers: {
@@ -58,14 +62,25 @@ class FeedbackService {
         },
       });
 
+      console.log('=== FEEDBACK SERVICE: Response received ===');
+      console.log('Status:', response.status);
+      console.log('OK:', response.ok);
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('=== FEEDBACK SERVICE: Data parsed ===');
+      console.log('Data structure:', {
+        totalRatings: data.totalRatings,
+        photosCount: data.photos?.length || 0,
+        promptsCount: data.prompts?.length || 0,
+        questionsCount: data.questions?.length || 0
+      });
       return data;
     } catch (error) {
-      console.error('Error fetching feedback data:', error);
+      console.error('=== FEEDBACK SERVICE: Error ===', error);
       throw error;
     }
   }

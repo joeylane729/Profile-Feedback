@@ -6,94 +6,13 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { colors } from '../../config/theme';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { getRandomProfile, DiscoverProfile } from '../../services/profile';
+import { useAuth } from '../../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 const PHOTO_CAROUSEL_HEIGHT = height;
 const PHOTO_CAROUSEL_WIDTH = width;
 const PHOTO_SIZE = width;
-
-const DUMMY_REVIEWS = [
-  {
-    type: 'profile',
-    name: 'Samantha',
-    age: 28,
-    location: 'San Francisco, CA',
-    job: 'Product Designer',
-    school: 'Stanford University',
-    height: `5'7"`,
-    gender: 'Female',
-    languages: 'English, Spanish',
-    religion: 'Agnostic',
-    photos: [
-      { id: '1', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60' },
-      { id: '2', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60' },
-      { id: '3', uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=60' },
-      { id: '4', uri: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=60' },
-      { id: '5', uri: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&auto=format&fit=crop&q=60' },
-    ],
-    prompts: [
-      { id: '1', question: "I'm looking for", answer: "Someone who can make me laugh and isn't afraid to be themselves." },
-      { id: '2', question: "My ideal first date", answer: "Coffee and a walk in the park, followed by a visit to a local art gallery or museum." },
-    ],
-    reviewerQuestion: {
-      type: 'open',
-      question: 'What is your first impression of Samantha?'
-    },
-  },
-  {
-    type: 'comparison',
-    target: 'photo',
-    left: { uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=60', label: 'Old Photo' },
-    right: { uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60', label: 'New Photo' },
-    context: 'Samantha, 28, San Francisco, CA',
-  },
-  {
-    type: 'profile',
-    name: 'Alex',
-    age: 31,
-    location: 'New York, NY',
-    job: 'Software Engineer',
-    school: 'NYU',
-    height: `6'0"`,
-    gender: 'Male',
-    languages: 'English, French',
-    religion: 'None',
-    photos: [
-      { id: '1', uri: 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&auto=format&fit=crop&q=60' },
-      { id: '2', uri: 'https://images.unsplash.com/photo-1465101178521-c1a9136a3fd9?w=800&auto=format&fit=crop&q=60' },
-      { id: '3', uri: 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&auto=format&fit=crop&q=60' },
-    ],
-    prompts: [
-      { id: '1', question: "A fact about me", answer: "I once biked across the country." },
-      { id: '2', question: "Favorite food", answer: "Sushi and tacos!" },
-    ],
-    reviewerQuestion: {
-      type: 'mc',
-      question: 'Which of these best describes Alex?',
-      options: ['Adventurous', 'Intellectual', 'Funny', 'Chill']
-    },
-  },
-  {
-    type: 'profile',
-    name: 'Taylor',
-    age: 26,
-    location: 'Austin, TX',
-    job: 'Photographer',
-    school: 'UT Austin',
-    height: `5'9"`,
-    gender: 'Non-binary',
-    languages: 'English',
-    religion: 'Spiritual',
-    photos: [
-      { id: '1', uri: 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&auto=format&fit=crop&q=60' },
-      { id: '2', uri: 'https://images.unsplash.com/photo-1465101178521-c1a9136a3fd9?w=800&auto=format&fit=crop&q=60' },
-    ],
-    prompts: [
-      { id: '1', question: "My weekend plans", answer: "Hiking and brunch with friends." },
-      { id: '2', question: "Best travel story", answer: "Got lost in Tokyo and found the best ramen shop." },
-    ],
-  },
-];
 
 const LIKE_OPTIONS = [
   { label: 'Not at all', value: 1 },
@@ -107,7 +26,10 @@ const REQUIRED_CREDITS = 10;
 const DiscoverScreen = () => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
-  const [profileIndex, setProfileIndex] = useState(0);
+  const { token } = useAuth();
+  const [currentProfile, setCurrentProfile] = useState<DiscoverProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activePhoto, setActivePhoto] = useState(0);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
   const [hasSeenLastPhoto, setHasSeenLastPhoto] = useState(false);
@@ -146,20 +68,36 @@ const DiscoverScreen = () => {
   const textInputRef = useRef<TextInput>(null);
   const textInputWrapperRef = useRef<View>(null);
 
-  const profile = DUMMY_REVIEWS[profileIndex];
+  // Fetch a random profile
+  const fetchRandomProfile = async () => {
+    if (!token) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const profile = await getRandomProfile(token);
+      console.log('=== DISCOVER SCREEN: Fetched random profile ===');
+      console.log('Profile:', profile.name);
+      console.log('Photos:', profile.photos.length);
+      console.log('Prompts:', profile.prompts.length);
+      console.log('Full profile data:', JSON.stringify(profile, null, 2));
+      setCurrentProfile(profile);
+    } catch (err) {
+      console.error('=== DISCOVER SCREEN: Error fetching profile ===', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch profile');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Helper to check if current review is a profile
-  const isProfile = profile.type === 'profile';
-
-  // Only use photos if it's a profile
-  const profilePhotos = isProfile && Array.isArray(profile.photos) ? profile.photos : [];
-
-  // Only use prompts if it's a profile
-  const profilePrompts = isProfile && Array.isArray(profile.prompts) ? profile.prompts : [];
+  // Load initial profile
+  useEffect(() => {
+    fetchRandomProfile();
+  }, [token]);
 
   // Progress: total number of photos with feedback
-  const ratedCount = isProfile ? profilePhotos.filter(p => photoFeedback[p.id]).length : 0;
-  const progress = isProfile ? ratedCount / profilePhotos.length : 0;
+  const ratedCount = currentProfile ? currentProfile.photos.filter(p => photoFeedback[p.id]).length : 0;
+  const progress = currentProfile && currentProfile.photos.length > 0 ? ratedCount / currentProfile.photos.length : 0;
 
   // Animated progress value
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -173,7 +111,7 @@ const DiscoverScreen = () => {
   };
 
   const getSelectedButtonStyle = (type: 'remove' | 'neutral' | 'keep') => {
-    const currentPhotoId = profilePhotos[activePhoto]?.id;
+    const currentPhotoId = currentProfile?.photos?.[activePhoto]?.id;
     const isSelected = activeFeedback === type;
     
     switch (type) {
@@ -198,7 +136,7 @@ const DiscoverScreen = () => {
   };
 
   const handlePhotoFeedback = (photoId: string, feedback: 'keep' | 'remove' | 'neutral') => {
-    if (isTransitioning) return;
+    if (isTransitioning || !currentProfile) return;
     setIsTransitioning(true);
     setActiveFeedback(feedback);
     const nextPhotoFeedback = { ...photoFeedback, [photoId]: feedback };
@@ -206,9 +144,9 @@ const DiscoverScreen = () => {
 
     // Show selected state for a moment before transitioning
     setTimeout(() => {
-      if (activePhoto === profilePhotos.length - 1) {
+      if (activePhoto === currentProfile.photos.length - 1) {
         setHasSeenLastPhoto(true);
-        animateProgress((profilePhotos.filter(p => nextPhotoFeedback[p.id]).length) / profilePhotos.length);
+        animateProgress((currentProfile.photos.filter(p => nextPhotoFeedback[p.id]).length) / currentProfile.photos.length);
         // Don't clear activeFeedback for the last photo
         setTimeout(() => {
           setIsTransitioning(false);
@@ -216,7 +154,7 @@ const DiscoverScreen = () => {
       } else {
         InteractionManager.runAfterInteractions(() => {
           goToPhoto(activePhoto + 1);
-          animateProgress((profilePhotos.filter(p => nextPhotoFeedback[p.id]).length) / profilePhotos.length);
+          animateProgress((currentProfile.photos.filter(p => nextPhotoFeedback[p.id]).length) / currentProfile.photos.length);
           setTimeout(() => {
             setIsTransitioning(false);
             setActiveFeedback(null);
@@ -227,12 +165,12 @@ const DiscoverScreen = () => {
   };
 
   const goToPhoto = (index: number) => {
-    if (index >= 0 && index < profilePhotos.length) {
+    if (index >= 0 && index < (currentProfile?.photos?.length || 0)) {
       flatListRef.current?.scrollToIndex({ index, animated: true });
       setActivePhoto(index);
       // Set active feedback based on the photo's feedback
-      const photoId = profilePhotos[index].id;
-      if (photoFeedback[photoId]) {
+      const photoId = currentProfile?.photos?.[index]?.id;
+      if (photoId && photoFeedback[photoId]) {
         setActiveFeedback(photoFeedback[photoId]);
       }
       // Animate active dot
@@ -250,8 +188,8 @@ const DiscoverScreen = () => {
     const index = Math.round(e.nativeEvent.contentOffset.x / PHOTO_CAROUSEL_WIDTH);
     setActivePhoto(index);
     // Set active feedback based on the photo's feedback
-    const photoId = profilePhotos[index].id;
-    if (photoFeedback[photoId]) {
+    const photoId = currentProfile?.photos?.[index]?.id;
+    if (photoId && photoFeedback[photoId]) {
       setActiveFeedback(photoFeedback[photoId]);
     }
     Animated.spring(activePhotoAnim, {
@@ -272,7 +210,7 @@ const DiscoverScreen = () => {
       // Increment credits first
       setCredits(prev => prev + 1);
       
-      setProfileIndex((prev) => (prev + 1) % DUMMY_REVIEWS.length);
+      fetchRandomProfile();
       setActivePhoto(0);
       setIsProfileExpanded(false);
       setHasSeenLastPhoto(false);
@@ -411,11 +349,11 @@ const DiscoverScreen = () => {
   // Sync progressAnim with initial progress on mount and when profile changes
   useEffect(() => {
     animateProgress(progress);
-  }, [profileIndex]);
+  }, [currentProfile]);
 
   // Add this helper function to check if all prompts have feedback
   const areAllPromptsRated = () => {
-    return profilePrompts.every(prompt => promptFeedback[prompt.id]);
+    return currentProfile?.prompts.every(prompt => promptFeedback[prompt.id]);
   };
 
   // Reset animOpacity and selected when profileIndex changes
@@ -429,7 +367,7 @@ const DiscoverScreen = () => {
     setIsProfileExpanded(false);
     setActivePhoto(0);
     setSelected(null);
-  }, [profileIndex]);
+  }, [currentProfile]);
 
   // Credits progress header (copied from ProfileScreen)
   const renderHeader = () => {
@@ -628,7 +566,27 @@ const DiscoverScreen = () => {
     };
   }, []);
 
-  if (!profile) {
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
+          <Text style={{ fontSize: 20, color: '#888' }}>Loading profiles...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
+          <Text style={{ fontSize: 20, color: '#888' }}>{error}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!currentProfile) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
@@ -638,82 +596,19 @@ const DiscoverScreen = () => {
     );
   }
 
-  if (!isProfile) {
-    if (!profile.left || !profile.right) {
-      return (
-        <SafeAreaView style={styles.safeArea}>
-          <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
-            <Text style={{ fontSize: 20, color: '#888' }}>Comparison data missing</Text>
-          </View>
-        </SafeAreaView>
-      );
-    }
-    const VERTICAL_MARGIN = 16; // margin between photos
-    const OUTER_MARGIN = 24; // margin above first and below last photo
-    const HEADER_HEIGHT = 80; // estimate for name/age/location section
-    const availableHeight = height - insets.top - insets.bottom - tabBarHeight - HEADER_HEIGHT - OUTER_MARGIN * 2 - VERTICAL_MARGIN - questionTextHeight;
-    const maxSquareHeight = availableHeight / 2;
-    const maxSquareWidth = width - 32; // 16px horizontal padding on each side
-    const SQUARE_SIZE = Math.floor(Math.min(maxSquareHeight, maxSquareWidth));
-    const handleSelect = (side: 'left' | 'right') => {
-      setSelected(side);
-      Animated.timing(animOpacity, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => {
-        // Fade in new profile smoothly
-        profileOpacity.setValue(0);
-        // Increment credits
-        setCredits(prev => prev + 1);
-        setProfileIndex((prev) => {
-          const nextIndex = (prev + 1) % DUMMY_REVIEWS.length;
-          return nextIndex;
-        });
-        setSelected(null);
-        animOpacity.setValue(1);
-      });
-    };
+  if (!currentProfile || !currentProfile.name) {
+    console.log('=== DISCOVER SCREEN: Profile data missing ===');
+    console.log('currentProfile:', currentProfile);
     return (
       <SafeAreaView style={styles.safeArea}>
-        {renderHeader()}
-        <Animated.View key={profileIndex} style={[styles.container, { justifyContent: 'flex-start', alignItems: 'center', opacity: animOpacity }]}> 
-          <View style={{ alignItems: 'center', marginTop: 36, marginBottom: 0, flexDirection: 'row', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#222' }}>{profile.context.split(',')[0]}</Text>
-            <Text style={{ fontSize: 24, color: '#222', marginLeft: 10, fontWeight: 'normal' }}>{profile.context.split(',')[1]?.trim()}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, marginTop: 6 }}>
-            <Ionicons name="location-outline" size={18} color="#666" style={{ marginRight: 4 }} />
-            <Text style={{ fontSize: 16, color: '#666' }}>{profile.context.split(',').slice(2).join(',').trim()}</Text>
-          </View>
-          <View style={{ width: '100%', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: VERTICAL_MARGIN, marginTop: OUTER_MARGIN, marginBottom: OUTER_MARGIN }}>
-            <TouchableOpacity
-              style={{ width: SQUARE_SIZE, height: SQUARE_SIZE, borderRadius: 18, borderWidth: 4, borderColor: selected === 'left' ? '#2563eb' : '#eee', overflow: 'hidden', marginBottom: VERTICAL_MARGIN / 2 }}
-              activeOpacity={0.85}
-              onPress={() => handleSelect('left')}
-              disabled={!!selected}
-            >
-              <Image source={{ uri: profile.left.uri }} style={{ width: SQUARE_SIZE, height: SQUARE_SIZE, borderRadius: 18, resizeMode: 'cover' }} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{ width: SQUARE_SIZE, height: SQUARE_SIZE, borderRadius: 18, borderWidth: 4, borderColor: selected === 'right' ? '#2563eb' : '#eee', overflow: 'hidden', marginTop: VERTICAL_MARGIN / 2 }}
-              activeOpacity={0.85}
-              onPress={() => handleSelect('right')}
-              disabled={!!selected}
-            >
-              <Image source={{ uri: profile.right.uri }} style={{ width: SQUARE_SIZE, height: SQUARE_SIZE, borderRadius: 18, resizeMode: 'cover' }} />
-            </TouchableOpacity>
-          </View>
-          <Text
-            style={{ fontSize: 18, fontWeight: '600', color: '#222', marginBottom: 18 }}
-            onLayout={e => setQuestionTextHeight(e.nativeEvent.layout.height + 18)}
-          >
-            Which do you prefer?
-          </Text>
-        </Animated.View>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}> 
+          <Text style={{ fontSize: 20, color: '#888' }}>Profile data missing</Text>
+        </View>
       </SafeAreaView>
     );
   }
+
+
 
   const translateY = Animated.add(
     pan,
@@ -757,13 +652,13 @@ const DiscoverScreen = () => {
         <Animated.View style={[styles.container, { opacity: profileOpacity }]}>
           {/* Profile Name and Age */}
           <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 0, flexDirection: 'row', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#222' }}>{profile.name}</Text>
-            <Text style={{ fontSize: 24, color: '#222', marginLeft: 10, fontWeight: 'normal' }}>{profile.age}</Text>
+            <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#222' }}>{currentProfile.name}</Text>
+            <Text style={{ fontSize: 24, color: '#222', marginLeft: 10, fontWeight: 'normal' }}>{currentProfile.age}</Text>
           </View>
           {/* Profile Location */}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, marginTop: 6 }}>
             <Ionicons name="location-outline" size={18} color="#666" style={{ marginRight: 4 }} />
-            <Text style={{ fontSize: 16, color: '#666' }}>{profile.location}</Text>
+            <Text style={{ fontSize: 16, color: '#666' }}>{currentProfile.location}</Text>
           </View>
           {/* Back Button Above Photo */}
           <Animated.View
@@ -781,7 +676,7 @@ const DiscoverScreen = () => {
           <View style={styles.photoContainer}>
             <FlatList
               ref={flatListRef}
-              data={profilePhotos}
+              data={currentProfile.photos}
               keyExtractor={item => item.id}
               horizontal
               pagingEnabled
@@ -809,7 +704,7 @@ const DiscoverScreen = () => {
               ]}>
                 <TouchableOpacity 
                   style={styles.photoFeedbackButtonContent}
-                  onPress={() => handlePhotoFeedback(profilePhotos[activePhoto].id, 'remove')}
+                  onPress={() => handlePhotoFeedback(currentProfile.photos[activePhoto].id, 'remove')}
                   activeOpacity={0.7}
                   disabled={isTransitioning}
                 >
@@ -834,7 +729,7 @@ const DiscoverScreen = () => {
               ]}>
                 <TouchableOpacity 
                   style={styles.photoFeedbackButtonContent}
-                  onPress={() => handlePhotoFeedback(profilePhotos[activePhoto].id, 'neutral')}
+                  onPress={() => handlePhotoFeedback(currentProfile.photos[activePhoto].id, 'neutral')}
                   activeOpacity={0.7}
                   disabled={isTransitioning}
                 >
@@ -859,7 +754,7 @@ const DiscoverScreen = () => {
               ]}>
                 <TouchableOpacity 
                   style={styles.photoFeedbackButtonContent}
-                  onPress={() => handlePhotoFeedback(profilePhotos[activePhoto].id, 'keep')}
+                  onPress={() => handlePhotoFeedback(currentProfile.photos[activePhoto].id, 'keep')}
                   activeOpacity={0.7}
                   disabled={isTransitioning}
                 >
@@ -949,18 +844,18 @@ const DiscoverScreen = () => {
               {/* About Me Section */}
               <View style={styles.sectionCard}>
                 <Text style={styles.infoHeader}>About Me</Text>
-                <View style={styles.aboutMeItemRow}><Ionicons name="briefcase-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.job}</Text></View>
-                <View style={styles.aboutMeItemRow}><Ionicons name="school-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.school}</Text></View>
-                <View style={styles.aboutMeItemRow}><Ionicons name="body-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.height}</Text></View>
-                <View style={styles.aboutMeItemRow}><Ionicons name="male-female-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.gender}</Text></View>
-                <View style={styles.aboutMeItemRow}><Ionicons name="language-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.languages}</Text></View>
-                <View style={styles.aboutMeItemRow}><Ionicons name="book-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{profile.religion}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="briefcase-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{currentProfile.job}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="school-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{currentProfile.school}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="body-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{currentProfile.height}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="male-female-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{currentProfile.gender}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="language-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{currentProfile.languages}</Text></View>
+                <View style={styles.aboutMeItemRow}><Ionicons name="book-outline" size={18} color="#888" style={styles.aboutMeIcon} /><Text style={styles.infoText}>{currentProfile.religion}</Text></View>
               </View>
               <View style={styles.fullWidthDivider} />
 
               {/* Prompt Responses as a Single Section */}
               <View style={styles.promptsContainer}>
-                {profilePrompts.map((prompt: any) => (
+                {currentProfile.prompts.map((prompt: any) => (
                   <View key={prompt.id} style={styles.promptBox}>
                     <Text style={styles.promptQuestion}>{prompt.question}</Text>
                     <Text style={styles.promptAnswer}>{prompt.answer}</Text>
@@ -1007,14 +902,14 @@ const DiscoverScreen = () => {
               <View style={styles.fullWidthDivider} />
 
               {/* Likelihood Section */}
-              {profile.reviewerQuestion && (
+              {currentProfile.reviewerQuestion && (
                 <View style={{ marginBottom: 24 }}>
                   <Text style={{ fontSize: 16, fontWeight: '600', color: '#222', marginBottom: 8 }}>
-                    {profile.reviewerQuestion.question}
+                    {currentProfile.reviewerQuestion.question}
                   </Text>
-                  {profile.reviewerQuestion.type === 'mc' && profile.reviewerQuestion.options && (
+                  {currentProfile.reviewerQuestion.type === 'mc' && currentProfile.reviewerQuestion.options && (
                     <View style={{ flexDirection: 'column', gap: 8, marginBottom: 8 }}>
-                      {profile.reviewerQuestion.options.map((opt: string, idx: number) => (
+                      {currentProfile.reviewerQuestion.options.map((opt: string, idx: number) => (
                         <TouchableOpacity
                           key={idx}
                           style={{
@@ -1034,7 +929,7 @@ const DiscoverScreen = () => {
                       ))}
                     </View>
                   )}
-                  {profile.reviewerQuestion.type === 'open' && (
+                  {currentProfile.reviewerQuestion.type === 'open' && (
                     <View ref={textInputWrapperRef}>
                       <TextInput
                         ref={textInputRef}

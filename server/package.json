@@ -9,7 +9,8 @@
     "watch": "tsc -w",
     "migrate:up": "ts-node src/migrate.ts up",
     "migrate:down": "ts-node src/migrate.ts down",
-    "seed": "ts-node src/seed.ts"
+    "seed": "ts-node src/seed.ts",
+    "mock-data": "ts-node create-mock-data.ts"
   },
   "keywords": [],
   "author": "",

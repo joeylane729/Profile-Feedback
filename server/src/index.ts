@@ -9,6 +9,8 @@ import authRoutes from './routes/auth';
 import feedbackRoutes from './routes/feedback';
 import { authenticate } from './middleware/auth';
 import sequelize from './utils/db';
+// Import all models to ensure associations are set up
+import './models';
 
 // Load environment variables
 dotenv.config();
