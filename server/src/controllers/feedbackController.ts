@@ -20,8 +20,8 @@ export const getFeedbackData = async (req: AuthRequest, res: Response) => {
     const profile = await Profile.findOne({
       where: { user_id: userId },
       include: [
-        { model: Photo, as: 'Photos' },
-        { model: Prompt, as: 'Prompts' }
+        { model: Photo, as: 'photos' },
+        { model: Prompt, as: 'prompts' }
       ]
     });
 
@@ -40,7 +40,7 @@ export const getFeedbackData = async (req: AuthRequest, res: Response) => {
 
     // Process photo feedback
     const photoFeedback = await Promise.all(
-      (profile as any).Photos.map(async (photo: any) => {
+      (profile as any).photos.map(async (photo: any) => {
         const photoRatings = await Rating.findAll({
           where: {
             item_type: 'photo',
@@ -65,7 +65,7 @@ export const getFeedbackData = async (req: AuthRequest, res: Response) => {
 
     // Process prompt feedback
     const promptFeedback = await Promise.all(
-      (profile as any).Prompts.map(async (prompt: any) => {
+      (profile as any).prompts.map(async (prompt: any) => {
         const promptRatings = await Rating.findAll({
           where: {
             item_type: 'prompt',
@@ -121,14 +121,14 @@ export const getPhotoFeedback = async (req: AuthRequest, res: Response) => {
     // Verify the photo belongs to the user
     const profile = await Profile.findOne({
       where: { user_id: userId },
-      include: [{ model: Photo, as: 'Photos', where: { id: photoId } }]
+      include: [{ model: Photo, as: 'photos', where: { id: photoId } }]
     });
 
-    if (!profile || !(profile as any).Photos.length) {
+    if (!profile || !(profile as any).photos.length) {
       return res.status(404).json({ message: 'Photo not found' });
     }
 
-    const photo = (profile as any).Photos[0];
+    const photo = (profile as any).photos[0];
     const photoRatings = await Rating.findAll({
       where: {
         item_type: 'photo',
@@ -174,14 +174,14 @@ export const getPromptFeedback = async (req: AuthRequest, res: Response) => {
     // Verify the prompt belongs to the user
     const profile = await Profile.findOne({
       where: { user_id: userId },
-      include: [{ model: Prompt, as: 'Prompts', where: { id: promptId } }]
+      include: [{ model: Prompt, as: 'prompts', where: { id: promptId } }]
     });
 
-    if (!profile || !(profile as any).Prompts.length) {
+    if (!profile || !(profile as any).prompts.length) {
       return res.status(404).json({ message: 'Prompt not found' });
     }
 
-    const prompt = (profile as any).Prompts[0];
+    const prompt = (profile as any).prompts[0];
     const promptRatings = await Rating.findAll({
       where: {
         item_type: 'prompt',
