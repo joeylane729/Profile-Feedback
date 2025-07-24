@@ -60,13 +60,12 @@ const DiscoverScreen = () => {
   const keepButtonAnim = useRef(new Animated.Value(0)).current;
   const [questionTextHeight, setQuestionTextHeight] = useState(40); // default guess
   const [credits, setCredits] = useState(7); // mock value, replace with real data as needed
-  const [reviewerAnswer, setReviewerAnswer] = useState<string>('');
-  const [reviewerMCAnswer, setReviewerMCAnswer] = useState<number | null>(null);
+  const [vibeAnswer, setVibeAnswer] = useState<string>('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const keyboardAwareScrollViewRef = useRef<KeyboardAwareScrollView>(null);
-  const textInputRef = useRef<TextInput>(null);
-  const textInputWrapperRef = useRef<View>(null);
+  const vibeTextInputRef = useRef<TextInput>(null);
+  const vibeTextInputWrapperRef = useRef<View>(null);
 
   // Fetch a random profile
   const fetchRandomProfile = async () => {
@@ -218,6 +217,7 @@ const DiscoverScreen = () => {
       setActiveFeedback(null); // Reset active feedback
       setPromptFeedback({}); // Reset prompt feedback
       setActivePromptFeedback({}); // Reset active prompt feedback
+      setVibeAnswer(''); // Reset vibe answer
       expandAnimation.setValue(0);
       pan.setValue(0);
       progressAnimation.setValue(0);
@@ -354,6 +354,16 @@ const DiscoverScreen = () => {
   // Add this helper function to check if all prompts have feedback
   const areAllPromptsRated = () => {
     return currentProfile?.prompts.every(prompt => promptFeedback[prompt.id]);
+  };
+
+  // Add this helper function to check if vibe question is answered
+  const isVibeQuestionAnswered = () => {
+    return vibeAnswer.trim().length > 0;
+  };
+
+  // Check if all required questions are answered
+  const areAllQuestionsAnswered = () => {
+    return areAllPromptsRated() && isVibeQuestionAnswered();
   };
 
   // Reset animOpacity and selected when profileIndex changes
@@ -543,16 +553,16 @@ const DiscoverScreen = () => {
     const showSubscription = Keyboard.addListener(keyboardWillShow, (e) => {
       setKeyboardHeight(e.endCoordinates.height);
       setIsKeyboardVisible(true);
-      setTimeout(() => {
-        if (textInputWrapperRef.current && keyboardAwareScrollViewRef.current && e.endCoordinates.height > 0) {
-          const scrollResponderRaw = keyboardAwareScrollViewRef.current.getScrollResponder && keyboardAwareScrollViewRef.current.getScrollResponder();
-          const scrollResponder = scrollResponderRaw as any;
-          const inputHandle = findNodeHandle(textInputWrapperRef.current);
-          if (scrollResponder && typeof inputHandle === 'number') {
-            scrollResponder.scrollResponderScrollNativeHandleToKeyboard(inputHandle, 16, true);
+              setTimeout(() => {
+          if (vibeTextInputWrapperRef.current && keyboardAwareScrollViewRef.current && e.endCoordinates.height > 0) {
+            const scrollResponderRaw = keyboardAwareScrollViewRef.current.getScrollResponder && keyboardAwareScrollViewRef.current.getScrollResponder();
+            const scrollResponder = scrollResponderRaw as any;
+            const inputHandle = findNodeHandle(vibeTextInputWrapperRef.current);
+            if (scrollResponder && typeof inputHandle === 'number') {
+              scrollResponder.scrollResponderScrollNativeHandleToKeyboard(inputHandle, 16, true);
+            }
           }
-        }
-      }, 100);
+        }, 100);
     });
 
     const hideSubscription = Keyboard.addListener(keyboardWillHide, () => {
@@ -901,89 +911,66 @@ const DiscoverScreen = () => {
               </View>
               <View style={styles.fullWidthDivider} />
 
-              {/* Likelihood Section */}
-              {currentProfile.reviewerQuestion && (
-                <View style={{ marginBottom: 24 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#222', marginBottom: 8 }}>
-                    {currentProfile.reviewerQuestion.question}
-                  </Text>
-                  {currentProfile.reviewerQuestion.type === 'mc' && currentProfile.reviewerQuestion.options && (
-                    <View style={{ flexDirection: 'column', gap: 8, marginBottom: 8 }}>
-                      {currentProfile.reviewerQuestion.options.map((opt: string, idx: number) => (
-                        <TouchableOpacity
-                          key={idx}
-                          style={{
-                            padding: 12,
-                            backgroundColor: reviewerMCAnswer === idx ? '#222' : '#f5f5f5',
-                            borderRadius: 8,
-                            marginBottom: 6,
-                            borderWidth: reviewerMCAnswer === idx ? 2 : 1,
-                            borderColor: reviewerMCAnswer === idx ? '#222' : '#eee',
-                          }}
-                          onPress={() => setReviewerMCAnswer(idx)}
-                        >
-                          <Text style={{ color: reviewerMCAnswer === idx ? '#fff' : '#222', fontSize: 15 }}>
-                            {String.fromCharCode(65 + idx)}. {opt}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                  {currentProfile.reviewerQuestion.type === 'open' && (
-                    <View ref={textInputWrapperRef}>
-                      <TextInput
-                        ref={textInputRef}
-                        style={{
-                          borderWidth: 1,
-                          borderColor: '#ddd',
-                          borderRadius: 8,
-                          padding: 12,
-                          fontSize: 15,
-                          backgroundColor: '#fff',
-                          color: '#222',
-                          minHeight: 48,
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: 0.05,
-                          shadowRadius: 2,
-                          elevation: 1,
-                        }}
-                        placeholder="Type your answer..."
-                        placeholderTextColor="#999"
-                        value={reviewerAnswer}
-                        onChangeText={setReviewerAnswer}
-                        multiline
-                      />
-                    </View>
-                  )}
+              {/* Vibe Question Section */}
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#222', marginBottom: 8 }}>
+                  What vibe does my profile give off?
+                </Text>
+                <View ref={vibeTextInputWrapperRef}>
+                  <TextInput
+                    ref={vibeTextInputRef}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: '#ddd',
+                      borderRadius: 8,
+                      padding: 12,
+                      fontSize: 15,
+                      backgroundColor: '#fff',
+                      color: '#222',
+                      minHeight: 48,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 2,
+                      elevation: 1,
+                    }}
+                    placeholder="Describe the vibe you get from this profile..."
+                    placeholderTextColor="#999"
+                    value={vibeAnswer}
+                    onChangeText={setVibeAnswer}
+                    multiline
+                  />
                 </View>
-              )}
-              <View style={styles.likelihoodSectionCard}>
-                <Text style={styles.likelihoodQuestion}>How likely are you to like this person?</Text>
-                <View style={styles.likelihoodOptions}>
-                  {LIKE_OPTIONS.map(option => (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[
-                        styles.likelihoodButton,
-                        !areAllPromptsRated() && styles.likelihoodButtonDisabled
-                      ]}
-                      onPress={handleOptionSelect}
-                      disabled={!areAllPromptsRated()}
-                    >
-                      <Text style={[
-                        styles.likelihoodButtonText,
-                        !areAllPromptsRated() && styles.likelihoodButtonTextDisabled
-                      ]}>{option.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                {!areAllPromptsRated() && (
-                  <Text style={styles.likelihoodHelperText}>
-                    Please rate all prompts above to continue
-                  </Text>
-                )}
               </View>
+                              <View style={styles.likelihoodSectionCard}>
+                  <Text style={styles.likelihoodQuestion}>How likely are you to like this person?</Text>
+                  <View style={styles.likelihoodOptions}>
+                    {LIKE_OPTIONS.map(option => (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.likelihoodButton,
+                          !areAllQuestionsAnswered() && styles.likelihoodButtonDisabled
+                        ]}
+                        onPress={handleOptionSelect}
+                        disabled={!areAllQuestionsAnswered()}
+                      >
+                        <Text style={[
+                          styles.likelihoodButtonText,
+                          !areAllQuestionsAnswered() && styles.likelihoodButtonTextDisabled
+                        ]}>{option.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {!areAllQuestionsAnswered() && (
+                    <Text style={styles.likelihoodHelperText}>
+                      {!areAllPromptsRated() 
+                        ? 'Please rate all prompts above to continue'
+                        : 'Please answer the vibe question above to continue'
+                      }
+                    </Text>
+                  )}
+                </View>
             </KeyboardAwareScrollView>
           </Animated.View>
         </View>
